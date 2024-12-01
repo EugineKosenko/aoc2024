@@ -1,0 +1,83 @@
+#+title: Adventure of Code, 2024, день 1
+
+* Частина 1
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day1_1.rs
+  <<day1:Декларації>>
+
+  fn main() {
+      <<day1:Прочитати-дані>>
+      <<day1_1:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day1:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day1:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let lines = io::BufReader::new(file).lines().collect::<Vec<_>>();
+#+end_src
+
+Створимо два вектори.
+
+#+begin_src rust :noweb-ref day1:Прочитати-дані
+  let mut vec1 = vec![];
+  let mut vec2 = vec![];
+#+end_src
+
+Прочитаємо рядки в вектори.
+
+#+begin_src rust :noweb-ref day1:Прочитати-дані
+  for line in lines {
+      let line = line.unwrap();
+      let mut line = line.split_whitespace();
+      let v = line.next().unwrap().parse::<usize>().unwrap();
+      vec1.push(v);
+      let v = line.next().unwrap().parse::<usize>().unwrap();
+      vec2.push(v);
+  }
+#+end_src
+
+Відсортуємо вектори.
+
+#+begin_src rust :noweb-ref day1_1:Дії
+  vec1.sort();
+  vec2.sort();
+#+end_src
+
+Переберемо попарно елементи векторів і отримаємо суму відстаней.
+
+#+begin_src rust :noweb-ref day1_1:Дії
+  let result: usize = vec1.iter().zip(vec2.iter())
+      .map(|(&v1, &v2)| v1.abs_diff(v2))
+      .sum();
+#+end_src
+
+* Частина 2
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day1_2.rs
+  <<day1:Декларації>>
+
+  fn main() {
+      <<day1:Прочитати-дані>>
+      <<day1_2:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Для кожного елемента першого вектора підрахуємо його кількість в другому векторі, обчислимо індекс
+схожості і просумуємо всі індекси.
+
+#+begin_src rust :noweb-ref day1_2:Дії
+  let result: usize = vec1.iter()
+      .map(|&v1| v1 * vec2.iter()
+           .filter(|&&v2| v2 == v1)
+           .count())
+      .sum();
+#+end_src
