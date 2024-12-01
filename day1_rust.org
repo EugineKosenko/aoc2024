@@ -1,4 +1,4 @@
-#+title: Adventure of Code, 2024, день 1
+#+title: Adventure of Code, 2024, день 1, =Rust=
 
 * Частина 1
 

@@ -1,0 +1,62 @@
+#+title: Adventure of Code, 2023, день 13, =J=
+
+#+begin_src j :noweb yes :tangle day1.ijs
+  <<day1:Визначення>>
+#+end_src
+
+Скрипт читається за допомогою команди [[https://code.jsoftware.com/wiki/Vocabulary/Foreigns#m0][виконання]] ~0!:1~.
+
+#+begin_src j
+  0!:1 <'day1.ijs'
+#+end_src
+
+* Читання даних
+
+Дані читаються з вказаного файла за допомогою команди [[https://code.jsoftware.com/wiki/Vocabulary/Foreigns#m1][читання]] ~1!:1~
+
+#+begin_src j :noweb-ref day1:Визначення
+  read =: 1!:1 @ <
+#+end_src
+
+Розділимо отриманий рядок на окремі рядки по переводу рядка (~LF~), і кожний отриманий рядок перетворимо
+на масив значень. В результаті отримаємо таблицю ~table~.
+
+#+begin_src j :noweb-ref day1:Визначення
+  lines =: ((LF&E.) (,;._2) ]) @ read f.
+  table =: ". @ lines f.
+#+end_src
+
+Транспонуємо таблицю.
+
+#+begin_src j :noweb-ref day1:Визначення
+  table =: |: @ table f.
+#+end_src
+
+* Частина 1
+
+Відсортуємо рядок з заданим індексом.
+
+#+begin_src j :noweb-ref day1:Визначення
+  sort =: /:~ @ { f.
+#+end_src
+
+Обчислимо суму відстаней, яка і є результатом.
+
+#+begin_src j :noweb-ref day1:Визначення
+  part1 =: +/ @ (| @ ((0&sort) - (1&sort))) @ table f.
+#+end_src
+
+* Частина 2
+
+Нехай ~count~ підраховує кількість входжень елемента в масив.
+
+#+begin_src j :noweb-ref day1:Визначення
+  count =: +/ @ (="0 _) f.
+#+end_src
+
+Обчислимо суму добутків для індексу схожості.
+
+#+begin_src j :noweb-ref day1:Визначення
+  part2 =: +/ @ (0&{ ([ * count) 1&{) @ table f.
+#+end_src
+
