@@ -1,0 +1,132 @@
+#+title: Adventure of Code, 2024, день 2, =Rust=
+
+* Частина 1
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day2_1.rs
+  <<day2:Декларації>>
+
+  <<day2:Визначення>>
+
+  fn main() {
+      let mut result = 0;
+      <<day2:Прочитати-дані>>
+      <<day2_1:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day2:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day2:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let lines = io::BufReader::new(file).lines().collect::<Vec<_>>();
+#+end_src
+
+Переберемо рядки, кожен рядок може оброблятися незалежно.
+
+#+begin_src rust :noweb yes :noweb-ref day2_1:Дії
+  for line in lines {
+      let line = line.unwrap();
+      <<day2_1:Обробити-рядок>>
+  }
+#+end_src
+
+Перетворимо рядок на вектор числових значень.
+
+#+begin_src rust :noweb-ref day2_1:Обробити-рядок
+  let v = line.split_whitespace()
+      .map(|v| v.parse::<usize>().unwrap())
+      .collect::<Vec<_>>();
+#+end_src
+
+Функція ~is_proper~ перевіряє, чи є вектор правильним.
+
+#+begin_src rust :noweb yes :noweb-ref day2:Визначення
+  fn is_proper(v: &Vec<usize>) -> bool {
+      <<day2:is-proper:Дії>>
+      true
+  }
+#+end_src
+
+Перевіримо, що вектор відсортований.
+
+#+begin_src rust :noweb-ref day2:is-proper:Дії
+  if !v.is_sorted_by(|a, b| a <= b) && !v.is_sorted_by(|a, b| a >= b) {
+      return false;
+  }
+#+end_src
+
+Перевіримо різниці значень.
+
+#+begin_src rust :noweb-ref day2:is-proper:Дії
+  let mut v = v.iter();
+  let mut p = *v.next().unwrap();
+  for &n in v {
+      let d = n.abs_diff(p);
+      if d < 1 || d > 3 {
+          return false;
+      }
+      p = n;
+  }
+#+end_src
+
+Якщо вектор правильний, збільшуємо результат.
+
+#+begin_src rust :noweb-ref day2_1:Обробити-рядок
+  if is_proper(&v) { result += 1; }
+#+end_src
+
+* Частина 2
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day2_2.rs
+  <<day2:Декларації>>
+
+  <<day2:Визначення>>
+
+  fn main() {
+      let mut result = 0;
+      <<day2:Прочитати-дані>>
+      <<day2_2:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Переберемо рядки, кожен рядок може оброблятися незалежно.
+
+#+begin_src rust :noweb yes :noweb-ref day2_2:Дії
+  for line in lines {
+      let line = line.unwrap();
+      <<day2_2:Обробити-рядок>>
+  }
+#+end_src
+
+Перетворимо рядок на вектор числових значень.
+
+#+begin_src rust :noweb-ref day2_2:Обробити-рядок
+  let v = line.split_whitespace()
+      .map(|v| v.parse::<usize>().unwrap())
+      .collect::<Vec<_>>();
+#+end_src
+
+В векторі послідовно відкинемо кожний елемент, якщо хоча б один вектор виявиться правильним, то і весь
+вектор буде правильним.
+
+#+begin_src rust :noweb-ref day2_2:Обробити-рядок
+  if is_proper(&v) {
+      result += 1;
+  } else {
+      for i in 0..v.len() {
+          let mut v = v.clone();
+          v.remove(i);
+          if is_proper(&v) {
+              result += 1;
+              break;
+          }
+      }
+  }
+#+end_src
