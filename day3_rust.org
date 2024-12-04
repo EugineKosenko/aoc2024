@@ -1,0 +1,117 @@
+#+title: Adventure of Code, 2024, день 3, =Rust=
+
+* Частина 1
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day3_1.rs
+  <<day3:Декларації>>
+
+  <<day3:Визначення>>
+
+  fn main() {
+      let mut result = 0;
+      <<day3:Прочитати-дані>>
+      <<day3_1:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day3:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day3:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let lines = io::BufReader::new(file).lines().collect::<Vec<_>>();
+#+end_src
+
+Переберемо рядки, кожен рядок може оброблятися незалежно.
+
+#+begin_src rust :noweb yes :noweb-ref day3_1:Дії
+  for line in lines {
+      let mut line = line.unwrap();
+      <<day3_1:Обробити-рядок>>
+  }
+#+end_src
+
+Для кожного рядка послідовно виділяємо необхідний код. Якщо рядок починається з ключового слова ~min~,
+виділяємо цей фрагмент, інакше пропускаємо один символ і повторюємо.
+
+#+begin_src rust :noweb-ref day3_1:Обробити-рядок
+  lazy_static::lazy_static! {
+      static ref RE_CODE: regex::Regex = regex::Regex::new(r"^mul\((?P<n1>\d{1,3}),(?P<n2>\d{1,3})\)(?P<rest>.*)$").unwrap();
+  }
+  while !line.is_empty() {
+      match RE_CODE.captures(&line) {
+          None => { line = line[1..].to_string(); },
+          Some(cps) => {
+              let n1 = cps.name("n1").unwrap().as_str().parse::<usize>().unwrap();
+              let n2 = cps.name("n2").unwrap().as_str().parse::<usize>().unwrap();
+              line = cps.name("rest").unwrap().as_str().to_owned();
+              result += n1 * n2;
+          }
+      }
+  }
+#+end_src
+
+* Частина 2
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day3_2.rs
+  <<day3:Декларації>>
+
+  <<day3:Визначення>>
+
+  fn main() {
+      let mut result = 0;
+      <<day3:Прочитати-дані>>
+      <<day3_2:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Переберемо рядки, кожен рядок може оброблятися незалежно.
+
+#+begin_src rust :noweb yes :noweb-ref day3_2:Дії
+  let mut is_processed = true;
+  for line in lines {
+      let mut line = line.unwrap();
+      <<day3_2:Обробити-рядок>>
+  }
+#+end_src
+
+Для кожного рядка послідовно виділяємо необхідний код. Якщо рядок починається з ключового слова ~min~,
+виділяємо цей фрагмент, інакше пропускаємо один символ і повторюємо.
+
+Крім того, додаємо ще два варіанти з командами ~do~ і ~don't~, які включають та виключають прапорець
+обробки.
+
+#+begin_src rust :noweb-ref day3_2:Обробити-рядок
+  lazy_static::lazy_static! {
+      static ref RE_CODE: regex::Regex = regex::Regex::new(r"^mul\((?P<n1>\d{1,3}),(?P<n2>\d{1,3})\)(?P<rest>.*)$").unwrap();
+  }
+  while !line.is_empty() {
+      if let Some(rest) = line.strip_prefix("don't") {
+          is_processed = false;
+          line = rest.to_string();
+      } else if let Some(rest) = line.strip_prefix("do") {
+          is_processed = true;
+          line = rest.to_string();
+      }
+      if is_processed {
+          match RE_CODE.captures(&line) {
+              None => { line = line[1..].to_string(); },
+              Some(cps) => {
+                  let n1 = cps.name("n1").unwrap().as_str().parse::<usize>().unwrap();
+                  let n2 = cps.name("n2").unwrap().as_str().parse::<usize>().unwrap();
+                  line = cps.name("rest").unwrap().as_str().to_owned();
+                  result += n1 * n2;
+              }
+          }
+      } else {
+          line = line[1..].to_string();
+      }
+  }
+#+end_src
+
