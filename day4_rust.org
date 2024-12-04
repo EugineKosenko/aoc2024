@@ -1,0 +1,124 @@
+#+title: Adventure of Code, 2024, день 4, =Rust=
+
+* Частина 1
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day4_1.rs
+  <<day4:Декларації>>
+
+  <<day4:Визначення>>
+
+  fn main() {
+      let mut result = 0;
+      <<day4:Прочитати-дані>>
+      <<day4_1:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day4:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day4:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let lines = io::BufReader::new(file).lines().collect::<Vec<_>>();
+#+end_src
+
+Заповнимо матрицю з рядків.
+
+#+begin_src rust :noweb yes :noweb-ref day4:Прочитати-дані
+  let mut grid = grid::Grid::new(0, 0);
+  for line in lines {
+      grid.push_row(line.unwrap().chars().collect());
+  }
+  println!("{:#?}", grid);
+#+end_src
+
+Перебираємо усі точки матриці, а для кожної точки --- усі напрямки.
+
+#+begin_src rust :noweb yes :noweb-ref day4_1:Дії
+  for r in 0..grid.rows() {
+      for c in 0..grid.cols() {
+          for dr in -1..=1  {
+              for dc in -1..=1 {
+                  if (dr, dc) != (0, 0) {
+                      <<day4_1:Перевірити-напрямок>>
+                  }
+              }
+          }
+      }
+  }
+#+end_src
+
+Для перевірки напрямку починаємо з поточної точки і рухаємось в поточному напрямку до тих пір, поки не
+перевіримо усі символи ключового слова ~XMAS~.
+
+#+begin_src rust :noweb yes :noweb-ref day4_1:Перевірити-напрямок
+  let mut is_proper = true;
+  {
+      let mut r = r as isize;
+      let mut c = c as isize;
+      for s in "XMAS".chars() {
+          if r < 0 { is_proper = false; break; }
+          if c < 0 { is_proper = false; break; }
+          if r as usize == grid.rows() { is_proper = false; break; }
+          if c as usize == grid.cols() { is_proper = false; break; }
+
+          if *grid.get(r as usize, c as usize).unwrap() != s { is_proper = false; break; }
+
+          r += dr;
+          c += dc;
+      }
+  }
+#+end_src
+
+Для правильного слова підраховуємо результат.
+
+#+begin_src rust :noweb yes :noweb-ref day4_1:Перевірити-напрямок
+  if is_proper { result += 1 }
+#+end_src
+
+* Частина 2
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day4_2.rs
+  <<day4:Декларації>>
+
+  <<day4:Визначення>>
+
+  fn main() {
+      let mut result = 0;
+      <<day4:Прочитати-дані>>
+      <<day4_2:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Перебираємо усі точки, в яких є символ ~A~, однак при цьому точка має бути всередині дошки.
+
+#+begin_src rust :noweb yes :noweb-ref day4_2:Дії
+  for r in 1..grid.rows() - 1{
+      for c in 1..grid.cols() - 1{
+          if *grid.get(r, c).unwrap() == 'A' {
+              <<day4_2:Перевірити-точку>>
+          }
+      }
+  }
+#+end_src
+
+Перевіримо сусідні діагональні точки.
+
+#+begin_src rust :noweb yes :noweb-ref day4_2:Перевірити-точку
+  let lt = *grid.get(r - 1, c - 1).unwrap();
+  let rb = *grid.get(r + 1, c + 1).unwrap();
+  let rt = *grid.get(r - 1, c + 1).unwrap();
+  let lb = *grid.get(r + 1, c - 1).unwrap();
+
+  if (lt == 'M' && rb == 'S' || lt == 'S' && rb == 'M')
+      && (rt == 'M' && lb == 'S' || rt == 'S' && lb == 'M') {
+          result += 1;
+      }
+#+end_src
+
