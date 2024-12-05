@@ -1,0 +1,150 @@
+#+title: Adventure of Code, 2024, день 5, =Rust=
+
+* Частина 1
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day5_1.rs
+  <<day5:Декларації>>
+
+  <<day5:Визначення>>
+
+  fn main() {
+      let mut result = 0;
+      <<day5:Прочитати-дані>>
+      <<day5_1:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day5:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day5:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let mut lines = io::BufReader::new(file).lines();
+#+end_src
+
+Прочитаємо правила як множину пар.
+
+#+begin_src rust :noweb-ref day5:Декларації
+  use std::collections::BTreeSet;
+#+end_src
+
+#+begin_src rust :noweb-ref day5:Прочитати-дані
+  let mut rules = BTreeSet::new();
+  loop {
+      let line = lines.next().unwrap().unwrap();
+      if line.is_empty() { break; }
+      let mut pages = line.split('|');
+      rules.insert((pages.next().unwrap().parse::<usize>().unwrap(),
+                    pages.next().unwrap().parse::<usize>().unwrap()));
+  }
+#+end_src
+
+Переберемо послідовності.
+
+#+begin_src rust :noweb yes :noweb-ref day5_1:Дії
+  while let Some(line) = lines.next() {
+      let line = line.unwrap();
+      let seq = line.split(',')
+          .map(|page| page.parse::<usize>().unwrap())
+          .collect::<Vec<_>>();
+      let mut is_proper = true;
+      <<day5_1:Перевірити-послідовність>>
+      if is_proper {
+          <<day5_1:Додати-сторінку>>
+      }
+  }
+#+end_src
+
+Для перевірки послідовності перебираємо усі пари сторінок і шукаємо відповідну пару в множині правил.
+
+Для оптимізації, якщо ми знаходимо, що якась пара робить послідовність неправильною, пропускаємо перебір
+інших пар.
+
+#+begin_src rust :noweb-ref day5_1:Перевірити-послідовність
+  for i in 0..seq.len() {
+      if is_proper {
+          for j in i+1..seq.len() {
+              if !rules.contains(&(seq[i], seq[j])) {
+                  is_proper = false;
+                  break;
+              }
+          }
+      }
+  }
+#+end_src
+
+При додаванні сторінки треба знайти індекс посередині послідовності.
+
+#+begin_src rust :noweb-ref day5_1:Додати-сторінку
+  result += seq[(seq.len() - 1) / 2];
+#+end_src
+
+* Частина 2
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day5_2.rs
+  <<day5:Декларації>>
+
+  <<day5:Визначення>>
+
+  fn main() {
+      let mut result = 0;
+      <<day5:Прочитати-дані>>
+      <<day5_2:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Переберемо послідовності. Для неправильних послідовностей визначаємо неправильну пару і обмінюємо
+сторінки в послідовності, після чого повторюємо все спочатку, поки послідовність не стане правильною.
+
+#+begin_src rust :noweb yes :noweb-ref day5_2:Дії
+  while let Some(line) = lines.next() {
+      let line = line.unwrap();
+      let mut seq = line.split(',')
+          .map(|page| page.parse::<usize>().unwrap())
+          .collect::<Vec<_>>();
+      let mut improper_pair = None;
+      <<day5_2:Перевірити-послідовність>>
+      if improper_pair.is_some() {
+          loop {
+              match improper_pair {
+                  None => { break; },
+                  Some((i, j)) => { (seq[i], seq[j]) = (seq[j], seq[i]); }
+              }
+              improper_pair = None;
+              <<day5_2:Перевірити-послідовність>>
+          }
+          <<day5_2:Додати-сторінку>>
+      }
+  }
+#+end_src
+
+Для перевірки послідовності перебираємо усі пари сторінок і шукаємо відповідну пару в множині правил.
+
+Для оптимізації, якщо ми знаходимо, що якась пара робить послідовність неправильною, пропускаємо перебір
+інших пар.
+
+#+begin_src rust :noweb-ref day5_2:Перевірити-послідовність
+  for i in 0..seq.len() {
+      if improper_pair.is_none() {
+          for j in i+1..seq.len() {
+              if !rules.contains(&(seq[i], seq[j])) {
+                  improper_pair = Some((i, j));
+                  break;
+              }
+          }
+      }
+  }
+#+end_src
+
+При додаванні сторінки треба знайти індекс посередині послідовності.
+
+#+begin_src rust :noweb-ref day5_2:Додати-сторінку
+  result += seq[(seq.len() - 1) / 2];
+#+end_src
+
