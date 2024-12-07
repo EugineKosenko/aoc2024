@@ -44,10 +44,10 @@
   }
 #+end_src
 
-Переберемо послідовності.
+Переберемо рядки.
 
 #+begin_src rust :noweb yes :noweb-ref day5_1:Дії
-  while let Some(line) = lines.next() {
+  for line in lines {
       let line = line.unwrap();
       let seq = line.split(',')
           .map(|page| page.parse::<usize>().unwrap())
@@ -103,7 +103,7 @@
 сторінки в послідовності, після чого повторюємо все спочатку, поки послідовність не стане правильною.
 
 #+begin_src rust :noweb yes :noweb-ref day5_2:Дії
-  while let Some(line) = lines.next() {
+  for line in lines {
       let line = line.unwrap();
       let mut seq = line.split(',')
           .map(|page| page.parse::<usize>().unwrap())

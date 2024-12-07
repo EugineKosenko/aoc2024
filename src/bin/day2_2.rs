@@ -1,6 +1,6 @@
 use std::{fs, env, io::{self, BufRead}};
 
-fn is_proper(v: &Vec<usize>) -> bool {
+fn is_proper(v: &[usize]) -> bool {
     if !v.is_sorted_by(|a, b| a <= b) && !v.is_sorted_by(|a, b| a >= b) {
         return false;
     }
@@ -8,7 +8,7 @@ fn is_proper(v: &Vec<usize>) -> bool {
     let mut p = *v.next().unwrap();
     for &n in v {
         let d = n.abs_diff(p);
-        if d < 1 || d > 3 {
+        if !(1..=3).contains(&d) {
             return false;
         }
         p = n;

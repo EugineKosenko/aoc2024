@@ -47,7 +47,7 @@
 Функція ~is_proper~ перевіряє, чи є вектор правильним.
 
 #+begin_src rust :noweb yes :noweb-ref day2:Визначення
-  fn is_proper(v: &Vec<usize>) -> bool {
+  fn is_proper(v: &[usize]) -> bool {
       <<day2:is-proper:Дії>>
       true
   }
@@ -68,7 +68,7 @@
   let mut p = *v.next().unwrap();
   for &n in v {
       let d = n.abs_diff(p);
-      if d < 1 || d > 3 {
+      if !(1..=3).contains(&d) {
           return false;
       }
       p = n;

@@ -16,7 +16,7 @@ fn main() {
         rules.insert((pages.next().unwrap().parse::<usize>().unwrap(),
                       pages.next().unwrap().parse::<usize>().unwrap()));
     }
-    while let Some(line) = lines.next() {
+    for line in lines {
         let line = line.unwrap();
         let mut seq = line.split(',')
             .map(|page| page.parse::<usize>().unwrap())
