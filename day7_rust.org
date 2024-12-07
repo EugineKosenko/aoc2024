@@ -1,0 +1,156 @@
+#+title: Adventure of Code, 2024, день 7, =Rust=
+
+* Частина 1
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day7_1.rs
+  <<day7:Декларації>>
+
+  <<day7:Визначення>>
+  <<day7_1:Визначення>>
+
+  fn main() {
+      let mut result = 0;
+      <<day7:Прочитати-дані>>
+      <<day7_1:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day7:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day7:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let lines = io::BufReader::new(file).lines();
+#+end_src
+
+Рядки можуть оброблятися незалежно.
+
+#+begin_src rust :noweb yes :noweb-ref day7_1:Дії
+  for line in lines.into_iter() {
+      let line = line.unwrap();
+      <<day7_1:Обробити-рядок>>
+  }
+#+end_src
+
+Розберемо рядок на значення і послідовність аргументів.
+
+#+begin_src rust :noweb-ref day7_1:Обробити-рядок
+  let (value, args) = line.split_once(": ").unwrap();
+  let value = value.parse::<usize>().unwrap();
+  let args = args
+      .split_whitespace()
+      .map(|arg| arg.parse::<usize>().unwrap())
+      .collect::<Vec<_>>();
+#+end_src
+
+Якщо рядок правильний, додамо значення до результата.
+
+#+begin_src rust :noweb-ref day7_1:Обробити-рядок
+  if is_proper(value, args[0], &args[1..]) {
+      result += value;
+  }
+#+end_src
+
+** Перевірка рядка
+
+#+begin_src rust :noweb yes :noweb-ref day7_1:Визначення
+  fn is_proper(value: usize, result: usize, args: &[usize]) -> bool {
+      <<day7_1:is-proper:Дії>>
+  }
+#+end_src
+
+Якщо перелік аргументів пустий, перевіряємо рівність значення і результата, інакше перевіримо наступний
+аргумент.
+
+#+begin_src rust :noweb-ref day7_1:is-proper:Дії
+  if args.is_empty() {
+      value == result
+  } else {
+      is_proper(value, result + args[0], &args[1..])
+          || is_proper(value, result * args[0], &args[1..])
+  }
+#+end_src
+
+* Частина 2
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day7_2.rs
+  <<day7:Декларації>>
+
+  <<day7:Визначення>>
+  <<day7_2:Визначення>>
+
+  fn main() {
+      let mut result = 0;
+      <<day7:Прочитати-дані>>
+      <<day7_2:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Рядки можуть оброблятися незалежно.
+
+#+begin_src rust :noweb yes :noweb-ref day7_2:Дії
+  for line in lines.into_iter() {
+      let line = line.unwrap();
+      <<day7_2:Обробити-рядок>>
+  }
+#+end_src
+
+Розберемо рядок на значення і послідовність аргументів.
+
+#+begin_src rust :noweb-ref day7_2:Обробити-рядок
+  let (value, args) = line.split_once(": ").unwrap();
+  let value = value.parse::<usize>().unwrap();
+  let args = args
+      .split_whitespace()
+      .map(|arg| arg.parse::<usize>().unwrap())
+      .collect::<Vec<_>>();
+#+end_src
+
+Якщо рядок правильний, додамо значення до результата.
+
+#+begin_src rust :noweb-ref day7_2:Обробити-рядок
+  if is_proper(value, args[0], &args[1..]) {
+      result += value;
+  }
+#+end_src
+
+** Перевірка рядка
+
+#+begin_src rust :noweb yes :noweb-ref day7_2:Визначення
+  fn is_proper(value: usize, result: usize, args: &[usize]) -> bool {
+      <<day7_2:is-proper:Дії>>
+  }
+#+end_src
+
+Якщо перелік аргументів пустий, перевіряємо рівність значення і результата, інакше перевіримо наступний
+аргумент.
+
+#+begin_src rust :noweb-ref day7_2:is-proper:Дії
+  if args.is_empty() {
+      value == result
+  } else {
+      is_proper(value, result + args[0], &args[1..])
+          || is_proper(value, result * args[0], &args[1..])
+          || is_proper(value, concat(result, args[0]), &args[1..])
+  }
+#+end_src
+
+** З'єднання
+
+Для /з'єднання/ (=concat=) перетворимо кожен з аргументів на рядок, з'єднаємо рядки і перетворимо
+результат на число.
+
+#+begin_src rust :noweb-ref day7_2:Визначення
+  fn concat(arg1: usize, arg2: usize) -> usize {
+      let arg1 = arg1.to_string();
+      let arg2 = arg2.to_string();
+      (arg1 + &arg2).parse().unwrap()
+  }
+#+end_src
+
