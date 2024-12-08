@@ -1,0 +1,157 @@
+#+title: Adventure of Code, 2024, день 8, =Rust=
+
+* Частина 1
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day8_1.rs
+  <<day8:Декларації>>
+
+  <<day8:Визначення>>
+  <<day8_1:Визначення>>
+
+  fn main() {
+      <<day8:Прочитати-дані>>
+      <<day8_1:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day8:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day8:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let lines = io::BufReader::new(file).lines();
+#+end_src
+
+Зберемо позиції антен в мапу, згрупувавши антени однакового типу у вектори.
+
+#+begin_src rust :noweb-ref day8:Декларації
+  use std::collections::BTreeMap;
+#+end_src
+
+#+begin_src rust :noweb-ref day8:Прочитати-дані
+  let mut nodes = BTreeMap::<char, Vec<(usize, usize)>>::new();
+  let (mut rows, mut cols) = (0isize, 0isize);
+  for (r, row) in lines.enumerate() {
+      rows += 1;
+      let row = row.unwrap();
+      cols = row.len() as isize;
+      for (c, a) in row.chars().enumerate() {
+          if a != '.' {
+              nodes.entry(a).or_default().push((r, c));
+          }
+      }
+  }
+#+end_src
+
+** Пошук антиточок
+
+Для кожного типу антен переберемо усі пари позицій і для кожної пари зберемо антиточки в окремій множині.
+
+#+begin_src rust :noweb-ref day8:Декларації
+  use std::collections::BTreeSet;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref day8_1:Дії
+  let mut antinodes = BTreeSet::<(usize, usize)>::new();
+  for nodes in nodes.values() {
+      for i in 0..nodes.len() {
+          let n1 = nodes[i];
+          let r1 = n1.0 as isize;
+          let c1 = n1.1 as isize;
+          for n2 in nodes.iter().skip(i+1) {
+              let r2 = n2.0 as isize;
+              let c2 = n2.1 as isize;
+              <<day8_1:Обробити-пару>>
+          }
+      }
+  }
+  let result = antinodes.len();
+#+end_src
+
+Знайдемо направлення пари.
+
+#+begin_src rust :noweb yes :noweb-ref day8_1:Обробити-пару
+  let (dr, dc) = (r2 - r1, c2 - c1);
+#+end_src
+
+Знайдемо антиточки, якщо вони в межах дошки, зберемо їх в множині.
+
+#+begin_src rust :noweb yes :noweb-ref day8_1:Обробити-пару
+  let ar = r1 - dr;
+  let ac = c1 - dc;
+  if ar >= 0 && ac >= 0 && ar < rows && ac < cols {
+      antinodes.insert((ar as usize, ac as usize));
+  }
+  let ar = r2 + dr;
+  let ac = c2 + dc;
+  if ar >= 0 && ac >= 0 && ar < rows && ac < cols {
+      antinodes.insert((ar as usize, ac as usize));
+  }
+#+end_src
+
+* Частина 2
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day8_2.rs
+  <<day8:Декларації>>
+
+  <<day8:Визначення>>
+  <<day8_2:Визначення>>
+
+  fn main() {
+      <<day8:Прочитати-дані>>
+      <<day8_2:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Тепер кожна антена стає антиточкою.
+
+#+begin_src rust :noweb yes :noweb-ref day8_2:Дії
+  let mut antinodes = BTreeSet::<(usize, usize)>::new();
+  for nodes in nodes.values() {
+      for i in 0..nodes.len() {
+          let n1 = nodes[i];
+          antinodes.insert(n1);
+          let r1 = n1.0 as isize;
+          let c1 = n1.1 as isize;
+          for n2 in nodes.iter().skip(i+1) {
+              let r2 = n2.0 as isize;
+              let c2 = n2.1 as isize;
+              <<day8_2:Обробити-пару>>
+          }
+      }
+  }
+  let result = antinodes.len();
+#+end_src
+
+Знайдемо направлення пари.
+
+#+begin_src rust :noweb yes :noweb-ref day8_2:Обробити-пару
+  let (dr, dc) = (r2 - r1, c2 - c1);
+#+end_src
+
+Знайдемо антиточки, якщо вони в межах дошки, зберемо їх в множині.
+
+Тепер ми перебираємо усі точки в заданому напрямку, поки не буде досягнуто межі дошки.
+
+#+begin_src rust :noweb yes :noweb-ref day8_2:Обробити-пару
+  let mut ar = r1 - dr;
+  let mut ac = c1 - dc;
+  while ar >= 0 && ac >= 0 && ar < rows && ac < cols {
+      antinodes.insert((ar as usize, ac as usize));
+      ar -= dr;
+      ac -= dc;
+  }
+  let mut ar = r2 + dr;
+  let mut ac = c2 + dc;
+  while ar >= 0 && ac >= 0 && ar < rows && ac < cols {
+      antinodes.insert((ar as usize, ac as usize));
+      ar += dr;
+      ac += dc;
+  }
+#+end_src
