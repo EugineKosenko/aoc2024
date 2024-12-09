@@ -1,0 +1,131 @@
+#+title: Adventure of Code, 2024, день 9, =Rust=
+
+* Частина 1
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day9_1.rs
+  <<day9:Декларації>>
+
+  <<day9:Визначення>>
+  <<day9_1:Визначення>>
+
+  fn main() {
+      <<day9:Прочитати-дані>>
+      <<day9_1:Дії>>
+      <<day9:Підрахувати-суму>>
+      println!("{}", result);
+  }
+#+end_src
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day9:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day9:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let mut lines = io::BufReader::new(file).lines();
+#+end_src
+
+Створимо мапу блоків, лічильник =id= та ознаку, чи є фрагмент файлом.
+
+#+begin_src rust :noweb-ref day9:Прочитати-дані
+  let mut map = vec![];
+  let mut id = 0;
+  let mut is_file = true;
+#+end_src
+
+В завданні використовується тільки один рядок, який разберемо на окремі значення. Для кожного значення
+заповнимо мапу фрагментом з відповідним =id= відповідної довжини.
+
+#+begin_src rust :noweb-ref day9:Прочитати-дані
+  for c in lines.next().unwrap().unwrap().chars() {
+      for _ in 0..c.to_digit(10).unwrap() {
+          map.push(if is_file { Some(id) } else { None });
+      }
+      if is_file { id += 1; }
+      is_file = !is_file;
+  }
+#+end_src
+
+* Стискання
+
+При стисканні ми рухаємо індекс вільної позиції з початку (~i~). Цей індекс вказує на перше вільне
+місце. В кінці мапи завжди є зайняте місце, тому після стискання ми просто видаляємо переміщенний
+елемент.
+
+#+begin_src rust :noweb-ref day9_1:Дії
+  let mut i = 0;
+  while i < map.len() {
+      while i < map.len() && map[i].is_some() { i += 1 }
+      if i < map.len() - 1 {
+          map[i] = map.pop().unwrap();
+          i += 1;
+          while map.last().unwrap().is_none() { map.pop(); }
+      }
+  }
+#+end_src
+
+* Підрахунок суми
+
+#+begin_src rust :noweb-ref day9:Підрахувати-суму
+  let result = map.iter().enumerate().map(|(i, id)| i * id.unwrap_or(0)).sum::<usize>();
+#+end_src
+
+* Частина 2
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day9_2.rs
+  <<day9:Декларації>>
+
+  <<day9:Визначення>>
+  <<day9_2:Визначення>>
+
+  fn main() {
+      <<day9:Прочитати-дані>>
+      <<day9_2:Дії>>
+      <<day9:Підрахувати-суму>>
+      println!("{}", result);
+  }
+#+end_src
+
+* Стискання
+
+Переберемо індекси файлів, починаючи з найбільшого.
+
+#+begin_src rust :noweb yes :noweb-ref day9_2:Дії
+  for id in (0..=map.last().unwrap().unwrap()).rev() {
+      <<day9_2:Обробити-файл>>
+  }
+#+end_src
+
+Для кожного файла знайдемо перелік вказівників на його місця, довжина цього переліку визначить довжину
+файла.
+
+#+begin_src rust :noweb-ref day9_2:Обробити-файл
+  let pos = map.iter().enumerate()
+      .filter(|item| item.1.map(|fid| fid == id).unwrap_or(false))
+      .map(|item| item.0)
+      .collect::<Vec<_>>();
+#+end_src
+
+Знайдемо перше пусте місце с початку, довжина якого більше або дорівнює довжині файла.
+
+#+begin_src rust :noweb-ref day9_2:Обробити-файл
+  let mut i = 0;
+  while i < pos[0] {
+      while i < pos[0] && map[i].is_some() { i +=1 }
+      let mut j = i;
+      while map[j].is_none() { j += 1 }
+      if j - i >= pos.len() { break; }
+      i = j;
+  }
+  if i < pos[0] {
+      for k in pos {
+          map[i] = Some(id);
+          map[k] = None;
+          i += 1;
+      }
+  }
+#+end_src
+
