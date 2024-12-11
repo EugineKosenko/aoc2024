@@ -36,7 +36,7 @@ fn main() {
         .collect::<Vec<_>>();
     let mut cache = BTreeMap::new();
     for value in values {
-        result += size(value, 25, &mut cache);
+        result += size(value, 75, &mut cache);
     }
     println!("{}", result);
 }

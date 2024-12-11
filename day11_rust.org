@@ -33,37 +33,67 @@
       .collect::<Vec<_>>();
 #+end_src
 
-Виконуємо цикли. Для оптимізації заведемо чергу обробки ~queue~. Для кожного значення спочатку обробляємо
-це значення, відкладаючи нові згенеровані значення в чергу.
+Виконуємо цикли. Для оптимізації виконуємо обчислення в рекурсивній функціі ~size~. Для ефективності
+використовуємо кеш.
 
-Для оптимізації заведемо кеш (~cache~), в якому будемо зберігати кількість значень (~delta~), яку
-породжує поточне значення з черги.
+#+begin_src rust :noweb-ref day11:Декларації
+  use std::collections::BTreeMap;
+#+end_src
 
 #+begin_src rust :noweb-ref day11_1:Дії
-  let mut queue = [(0, 0); 1000];
-  let mut qi = 0;
-  for &value in &values {
-      println!("Value {}", value);
-      queue[qi] = (value, 25);
-      qi += 1;
-      while qi > 0 {
-          //if result % 100_000_000 == 0 { println!("{} {}", result, qi); }
-          qi -= 1;
-          let (mut value, count) = queue[qi];
-          for j in (0..count).rev() {
-              if value == 0 { value = 1; continue; }
-              let len = (value as f32).log10().floor() as u32 + 1;
-              if len % 2 == 0 {
-                  let p = 10_usize.pow(len / 2);
-                  queue[qi] = (value % p, j);
-                  qi += 1;
-                  value /= p;
+  let mut cache = BTreeMap::new();
+  for value in values {
+      result += size(value, 25, &mut cache);
+  }
+#+end_src
+
+* Рекурсивний обхід
+
+#+begin_src rust :noweb-ref day11:Визначення
+  fn size(value: usize, count: usize, cache: &mut BTreeMap<(usize, usize), usize>) -> usize {
+      cache.get(&(value, count))
+          .map(|result| *result)
+          .unwrap_or_else(|| {
+              let result = if count == 0 {
+                  1
+              } else if value == 0 {
+                  size(1, count - 1, cache)
               } else {
-                  value = value.checked_mul(2024).unwrap();
-              }
-          }
-          result += 1;
-      }
+                  let len = (value as f32).log10().floor() as u32 + 1;
+                  if len % 2 == 0 {
+                      let p = 10_usize.pow(len / 2);
+                      size(value / p, count - 1, cache) + size(value % p, count - 1, cache)
+                  } else {
+                      size(value.checked_mul(2024).unwrap(), count - 1, cache)
+                  }
+              };
+              cache.insert((value, count), result);
+              result
+          })
+  }
+#+end_src
+
+* Частина 2
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day11_2.rs
+  <<day11:Декларації>>
+  <<day11_2:Декларації>>
+
+  <<day11:Визначення>>
+  <<day11_2:Визначення>>
+
+  fn main() {
+      let mut result: usize = 0;
+      <<day11:Прочитати-дані>>
+      <<day11_2:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+#+begin_src rust :noweb-ref day11_2:Дії
+  let mut cache = BTreeMap::new();
+  for value in values {
+      result += size(value, 75, &mut cache);
   }
 #+end_src
 
