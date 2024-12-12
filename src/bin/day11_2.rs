@@ -4,7 +4,7 @@ use std::collections::BTreeMap;
 
 fn size(value: usize, count: usize, cache: &mut BTreeMap<(usize, usize), usize>) -> usize {
     cache.get(&(value, count))
-        .map(|result| *result)
+        .copied()
         .unwrap_or_else(|| {
             let result = if count == 0 {
                 1
@@ -30,7 +30,7 @@ fn main() {
     let args: Vec<String> = env::args().collect();
     let file = fs::File::open(&args[1]).unwrap();
     let values = io::BufReader::new(file)
-        .lines().nth(0).unwrap().unwrap()
+        .lines().next().unwrap().unwrap()
         .split(' ')
         .map(|value| value.parse::<usize>().unwrap())
         .collect::<Vec<_>>();
