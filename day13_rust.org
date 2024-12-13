@@ -1,0 +1,175 @@
+#+title: Adventure of Code, 2024, день 13, =Rust=
+
+В цілому задача є задачею дискретного програмування, тобто пошуку таких невід'ємних цілих чисел ~m~ і
+~n~, щоб ~m*Xa + n*Xb = X~, ~m*Ya + n*Yb = Y~, а функція ~3*m + n~ приймала мінімальне значення. Для
+простоти в першій частиня рішення знаходиться прямим перебором. В другій частині доведеться скористатися
+відомими алгоритмами дискретного програмування.
+
+На щастя, оскільки система строго визначена, замість складної задачі лінійного програмування достатньо
+просто вирішити точну систему рівнянь. Це рішення значно простіше, і може застосовуватись в обох
+частинах, однак неоптимальне рішення першої частини залишимо без змін.
+
+* Частина 1
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day13_1.rs
+  <<day13:Декларації>>
+  <<day13_1:Декларації>>
+
+  <<day13:Визначення>>
+  <<day13_1:Визначення>>
+
+  fn main() {
+      let mut result: usize = 0;
+      <<day13:Прочитати-дані>>
+      <<day13_1:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day13:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day13:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap());
+#+end_src
+
+Усі машини обробляються незалежно, але кожну треба прочитати нестандартним чином.
+
+#+begin_src rust :noweb yes :noweb-ref day13_1:Дії
+  let mut lines = lines.peekable();
+  while lines.peek().is_some() {
+      <<day13_1:Прочитати-машину>>
+      <<day13_1:Знайти-рішення>>
+  }
+#+end_src
+
+Для читання машини скористуємось регулярними виразами.
+
+#+begin_src rust :noweb-ref day13_1:Прочитати-машину
+  lazy_static::lazy_static! {
+      static ref RE_BUTTON: regex::Regex = regex::Regex::new(r"^Button [AB]: X\+(?P<x>\d+), Y\+(?P<y>\d+)$").unwrap();
+      static ref RE_PRIZE: regex::Regex = regex::Regex::new(r"^Prize: X=(?P<x>\d+), Y=(?P<y>\d+)$").unwrap();
+  }
+  let line = lines.next().unwrap();
+  let cps = RE_BUTTON.captures(&line).unwrap();
+  let x_a = cps.name("x").unwrap().as_str().parse::<usize>().unwrap();
+  let y_a = cps.name("y").unwrap().as_str().parse::<usize>().unwrap();
+  let line = lines.next().unwrap();
+  let cps = RE_BUTTON.captures(&line).unwrap();
+  let x_b = cps.name("x").unwrap().as_str().parse::<usize>().unwrap();
+  let y_b = cps.name("y").unwrap().as_str().parse::<usize>().unwrap();
+  let line = lines.next().unwrap();
+  let cps = RE_PRIZE.captures(&line).unwrap();
+  let x = cps.name("x").unwrap().as_str().parse::<usize>().unwrap();
+  let y = cps.name("y").unwrap().as_str().parse::<usize>().unwrap();
+  lines.next();
+#+end_src
+
+Перебираємо усі пари ~(m, n)~ з урахуванням меж і перевіряємо рішення.
+
+#+begin_src rust :noweb-ref day13_1:Знайти-рішення
+  let mut sol = usize::MAX;
+  for m in 0..=(x/x_a) {
+      for n in 0..=((x - x_a*m)/x_b) {
+          if x_a * m + x_b * n == x
+              && y_a * m + y_b * n == y
+              && 3 * m + n < sol {
+                      sol = 3 * m + n;
+              }
+      }
+  }
+  if sol < usize::MAX { result += sol; }
+#+end_src
+
+* Частина 2
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day13_2.rs
+  <<day13:Декларації>>
+  <<day13_2:Декларації>>
+
+  <<day13:Визначення>>
+  <<day13_2:Визначення>>
+
+  fn main() {
+      let mut result: usize = 0;
+      <<day13:Прочитати-дані>>
+      <<day13_2:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Усі машини обробляються незалежно, але кожну треба прочитати нестандартним чином.
+
+#+begin_src rust :noweb yes :noweb-ref day13_2:Дії
+  let mut lines = lines.peekable();
+  while lines.peek().is_some() {
+      <<day13_2:Прочитати-машину>>
+      <<day13_2:Знайти-рішення>>
+  }
+#+end_src
+
+Для читання машини скористуємось регулярними виразами.
+
+#+begin_src rust :noweb-ref day13_2:Прочитати-машину
+  lazy_static::lazy_static! {
+      static ref RE_BUTTON: regex::Regex = regex::Regex::new(r"^Button [AB]: X\+(?P<x>\d+), Y\+(?P<y>\d+)$").unwrap();
+      static ref RE_PRIZE: regex::Regex = regex::Regex::new(r"^Prize: X=(?P<x>\d+), Y=(?P<y>\d+)$").unwrap();
+  }
+  let line = lines.next().unwrap();
+  let cps = RE_BUTTON.captures(&line).unwrap();
+  let x_a = cps.name("x").unwrap().as_str().parse::<usize>().unwrap() as f64;
+  let y_a = cps.name("y").unwrap().as_str().parse::<usize>().unwrap() as f64;
+  let line = lines.next().unwrap();
+  let cps = RE_BUTTON.captures(&line).unwrap();
+  let x_b = cps.name("x").unwrap().as_str().parse::<usize>().unwrap() as f64;
+  let y_b = cps.name("y").unwrap().as_str().parse::<usize>().unwrap() as f64;
+  let line = lines.next().unwrap();
+  let cps = RE_PRIZE.captures(&line).unwrap();
+  let x = (cps.name("x").unwrap().as_str().parse::<usize>().unwrap() + 10_000_000_000_000) as f64;
+  let y = (cps.name("y").unwrap().as_str().parse::<usize>().unwrap() + 10_000_000_000_000) as f64;
+  lines.next();
+#+end_src
+
+Для перевірки скористаємось рішенням системи рівнянь. Для рішення використовуємо пакет [[https://docs.rs/ndarray-linalg/latest/ndarray_linalg/solve/index.html][ndarray-linalg]],
+але для того, щоб він збирався, потрібно встановити системні пакети лінійної алгебри ~liblapack-dev~ та
+~libblas-dev~ та створити в корені "магічний" файл ~build.rs~ (рішення рекомендоване =Copilot/ChatGPT=).
+
+#+begin_src sh
+  sudo apt install liblapack-dev libblas-dev
+#+end_src
+
+#+begin_src rust :tangle build.rs
+  fn main() {
+      println!("cargo:rustc-link-lib=lapack");
+      println!("cargo:rustc-link-lib=blas");
+  }
+#+end_src
+
+#+begin_src rust :noweb-ref day13_2:Декларації
+  use ndarray::prelude::*;
+  use ndarray_linalg::Solve;
+#+end_src
+
+#+begin_src rust :noweb-ref day13_2:Знайти-рішення
+  let a: Array2<f64> = array![[x_a, x_b], [y_a, y_b]];
+  let b: Array1<f64> = array![x, y];
+  let sol = a.solve_into(b).unwrap().to_vec();
+#+end_src
+
+Рішення округляємо до найближчого цілого, і якщо воно є цілим з належною точністю, то зараховуємо це
+рішення.
+
+#+begin_src rust :noweb-ref day13_2:Знайти-рішення
+  let m = sol[0].round();
+  let n = sol[1].round();
+  if (m as f64 - sol[0]).abs() < 1e-4 && (n as f64 - sol[1]).abs() < 1e-4 {
+      result += 3 * (m as usize) + (n as usize);
+  }
+#+end_src
