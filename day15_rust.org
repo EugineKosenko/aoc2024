@@ -136,7 +136,6 @@
   }
 #+end_src
 
-
 * Частина 2
 
 #+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day15_2.rs
@@ -147,7 +146,7 @@
   <<day15_2:Визначення>>
 
   fn main() {
-      let result = 0;
+      let mut result = 0;
       <<day15:Прочитати-дані>>
       <<day15_2:Дії>>
       println!("{}", result);
@@ -171,7 +170,6 @@
               }.chars())
               .collect());
   }
-  println!("{:#?}", board);
 #+end_src
 
 Отримаємо початкові координати робота.
@@ -184,7 +182,6 @@
           break;
       }
   }
-  println!("{:?}", point);
 #+end_src
 
 Далі перебираємо команди і обробляємо їх.
@@ -202,7 +199,6 @@
 Тепер обробка суттєво залежить від напрямку, тому розділимо варіанти за командою.
 
 #+begin_src rust :noweb yes :noweb-ref day15_2:Обробити-команду
-  println!("{}", command);
   match command {
       '^' | 'v' => {
           <<day15_2:Обробити-вертикальну-команду>>
@@ -215,8 +211,6 @@
       },
       c => panic!("Unexpected command {}", c)
   }
-  println!("{:#?}", board);
-  break;
 #+end_src
 
 ** Команда вліво
@@ -240,14 +234,14 @@
   }
 #+end_src
 
-** TODO Команда вправо
+** Команда вправо
 
 #+begin_src rust :noweb yes :noweb-ref day15_2:Обробити-команду-вправо
   for i in (point.1+1)..board.cols() {
       let ch = *board.get(point.0, i).unwrap();
       if ch == '#' { break; } // стінка
       if ch == '.' { // вільна точка
-          for j in ((point.1+1)..board.cols()).step_by(2) {
+          for j in ((point.1+2)..i).step_by(2) {
               ,*board.get_mut(point.0, j).unwrap() = '[';
               ,*board.get_mut(point.0, j + 1).unwrap() = ']';
           }
@@ -259,4 +253,136 @@
   }
 #+end_src
 
-** TODO Вертикальна команда
+** Вертикальна команда
+
+Вертикальні команди (вверх і вниз) обробляються однаково, однак треба визначити напрямок руху.
+
+#+begin_src rust :noweb yes :noweb-ref day15_2:Обробити-вертикальну-команду
+  let delta = match command {
+      '^' => -1,
+      'v' => 1,
+      c => panic!("Unexpected command {}", c)
+  };
+#+end_src
+
+Визначимо наступний рядок.
+
+#+begin_src rust :noweb yes :noweb-ref day15_2:Обробити-вертикальну-команду
+  let row = (point.0 as isize + delta).try_into().unwrap();
+#+end_src
+
+Перевіримо точку наступну точку. Якщо це стінка, то рух роботу блокується, якщо це вільна точка, то робот
+просто переміщується, в іншому випадку обробляємо рух.
+
+#+begin_src rust :noweb yes :noweb-ref day15_2:Обробити-вертикальну-команду
+  match *board.get(row, point.1).unwrap() {
+      '#' => { /* стінка */ },
+      '.' => {
+          ,*board.get_mut(point.0, point.1).unwrap() = '.';
+          point.0 = row;
+          ,*board.get_mut(point.0, point.1).unwrap() = '@';
+      },
+      '[' | ']' => {
+          <<day15_2:Обробити-рух>>
+      },
+      c => panic!("Unexpected block {}", c)
+  }
+#+end_src
+
+При обробці руху створимо /фронт/ (=front=) --- множину точок блоків, які знаходяться в наступному рядку поруч з
+роботом.
+
+#+begin_src rust :noweb yes :noweb-ref day15_2:Декларації
+  use std::collections::BTreeSet;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref day15_2:Обробити-рух
+  let mut front = BTreeSet::new();
+#+end_src
+
+В цю множину входить точка пезпосередньо поруч з роботом, а також точка зліва або зправа в залежності від
+символу блоку.
+
+#+begin_src rust :noweb yes :noweb-ref day15_2:Обробити-рух
+  front.insert((row, point.1));
+  front.insert((row, match *board.get(row, point.1).unwrap() {
+      '[' => point.1 + 1,
+      ']' => point.1 - 1,
+      c => panic!("Unexpected block {}", c)
+  }));
+#+end_src
+
+Рекурсивно штовхаємо фронт, і якщо він рухається, рухаємо також робота.
+
+#+begin_src rust :noweb yes :noweb-ref day15_2:Обробити-рух
+  if push(&mut board, front, delta) {
+      ,*board.get_mut(point.0, point.1).unwrap() = '.';
+      point.0 = row;
+      ,*board.get_mut(point.0, point.1).unwrap() = '@';
+  }
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref day15_2:Визначення
+  fn push(board: &mut grid::Grid<char>, front: BTreeSet<(usize, usize)>, delta: isize) -> bool {
+      <<day15_2:push:Дії>>
+  }
+#+end_src
+
+Визначимо рядок наступного фронту.
+
+#+begin_src rust :noweb yes :noweb-ref day15_2:push:Дії
+  let row: usize = (front.first().unwrap().0 as isize + delta).try_into().unwrap();
+#+end_src
+
+Створимо наступний фронт.
+
+#+begin_src rust :noweb yes :noweb-ref day15_2:push:Дії
+  let mut nfront = BTreeSet::new();
+#+end_src
+
+Перебираємо точки поточного фронту. Якщо у точки в наступному рядку стінка, то рух фронту неможливий,
+тому перериваємо обчислення і повертаємо сигнал неможливості руху.
+
+#+begin_src rust :noweb yes :noweb-ref day15_2:push:Дії
+  for &(_, col) in &front {
+      match *board.get(row, col).unwrap() {
+          '#' => { return false; },
+          '.' => { /* nothing */ },
+          c @ '[' | c @ ']' => {
+              nfront.insert((row, col));
+              nfront.insert((row, match c {
+                  '[' => col + 1,
+                  ']' => col - 1,
+                  c => panic!("Unexpected block {}", c)
+              }
+              ));
+          },
+          c => panic!("Unexpected block {}", c)
+      }
+  }
+#+end_src
+
+Якщо новий фронт пустий, або його можна перемістити, то і поточний фронт можна перемістити.
+
+#+begin_src rust :noweb yes :noweb-ref day15_2:push:Дії
+  if nfront.is_empty() || push(board, nfront, delta) {
+      for (r, col) in front {
+          ,*board.get_mut(row, col).unwrap() = *board.get(r, col).unwrap();
+          ,*board.get_mut(r, col).unwrap() = '.';
+      }
+      true
+  } else {
+      false
+  }
+#+end_src
+
+* Підрахунок координат
+
+#+begin_src rust :noweb-ref day15_2:Дії
+  for ((row, col), ch) in board.indexed_iter() {
+      if *ch == '[' {
+          result += 100 * row + col;
+      }
+  }
+#+end_src
+
