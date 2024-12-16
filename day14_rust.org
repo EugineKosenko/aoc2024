@@ -91,3 +91,95 @@
   if px > cx && py < cy { c3 += 1; }
   if px > cx && py > cy { c4 += 1; }
 #+end_src
+
+* Частина 2
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day14_2.rs
+  <<day14:Декларації>>
+  <<day14_2:Декларації>>
+
+  <<day14:Визначення>>
+  <<day14_2:Визначення>>
+
+  fn main() {
+      let mut result = 0;
+      <<day14:Прочитати-дані>>
+      <<day14_2:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+В цій частині усіх роботів доведеться обробляти послідовно, крок за кроком, тому спочатку зберемо їх усіх
+в вектор.
+
+#+begin_src rust :noweb yes :noweb-ref day14_2:Дії
+  lazy_static::lazy_static! {
+      static ref RE_ROBOT: regex::Regex = regex::Regex::new(r"^p=(?P<px>-?\d+),(?P<py>-?\d+) v=(?P<vx>-?\d+),(?P<vy>-?\d+)$").unwrap();
+  }
+  let mut robots = vec![];
+  for line in lines {
+      let cps = RE_ROBOT.captures(&line).unwrap();
+      let px = cps.name("px").unwrap().as_str().parse::<isize>().unwrap();
+      let py = cps.name("py").unwrap().as_str().parse::<isize>().unwrap();
+      let vx = cps.name("vx").unwrap().as_str().parse::<isize>().unwrap();
+      let vy = cps.name("vy").unwrap().as_str().parse::<isize>().unwrap();
+
+      robots.push(((px, py), (vx, vy)));
+  }
+
+  let mut board = grid::Grid::init(height, width, 0);
+  for &((px, py), _) in &robots {
+      ,*board.get_mut(py, px).unwrap() += 1;
+  }
+
+  for i in 0..height {
+      for j in 0..width {
+          print!("{}", match *board.get(i, j).unwrap() {
+              0 => ".".to_string(),
+              v => v.to_string()
+          });
+      }
+      println!();
+  }
+  println!("{:?}", robots);
+#+end_src
+
+Поступово переміщуємо роботів до тих пір, поки вони усі не займуть унікальні позиції.
+
+#+begin_src rust :noweb-ref day14_2:Декларації
+  use itertools::Itertools;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref day14_2:Дії
+  for i in 0.. {
+      if robots.iter()
+          .map(|(pos, _)| pos)
+          .all_unique() {
+              result = i;
+              break;
+          }
+
+      for robot in robots.iter_mut() {
+          let px = (robot.0.0 + robot.1.0) % width as isize;
+          let px = if px < 0 { px + width as isize } else { px };
+          let py = (robot.0.1 + robot.1.1) % height as isize;
+          let py = if py < 0 { py + height as isize } else { py };
+          (*robot).0 = (px, py);
+      }
+  }
+
+  let mut board = grid::Grid::init(height, width, 0);
+  for &((px, py), _) in &robots {
+      ,*board.get_mut(py, px).unwrap() += 1;
+  }
+
+  for i in 0..height {
+      for j in 0..width {
+          print!("{}", match *board.get(i, j).unwrap() {
+              0 => ".".to_string(),
+              v => v.to_string()
+          });
+      }
+      println!();
+  }
+#+end_src

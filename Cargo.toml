@@ -19,3 +19,4 @@ all_asserts = "*"
 enum-iterator = "*"
 ndarray = { version = "0.15.2", features = ["blas", "approx", "std"] }
 ndarray-linalg = "0.16.0"
+itertools = "*"
