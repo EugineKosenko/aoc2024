@@ -1,0 +1,122 @@
+#+title: Adventure of Code, 2024, день 16, =Rust=
+
+Типова задача на хвильовий алгоритм для розв'ання лабіринтів. Однак, в цій задачі використовується
+нестандартне визначення відстані, оскільки перехід в точку з іншим направленням коштує набагато дорожче,
+ніж продовження руху.
+
+* Частина 1
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day16_1.rs
+  <<day16:Декларації>>
+  <<day16_1:Декларації>>
+
+  <<day16:Визначення>>
+  <<day16_1:Визначення>>
+
+  fn main() {
+      <<day16:Прочитати-дані>>
+      <<day16_1:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day16:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day16:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap());
+#+end_src
+
+Прочитаємо дошку. 
+
+#+begin_src rust :noweb-ref day16:Прочитати-дані
+  let mut board = grid::Grid::new(0, 0);
+  for line in lines {
+      board.push_row(line.chars().collect());
+  }
+  println!("{:#?}", board);
+#+end_src
+
+Отримаємо координати початкової і кінцевої точки.
+
+#+begin_src rust :noweb-ref day16:Прочитати-дані
+  let mut start = (0, 0);
+  for (pt, &ch) in board.indexed_iter() {
+      if ch == 'S' {
+          start = pt;
+          break;
+      }
+  }
+
+  let mut finish = (0, 0);
+  for (pt, &ch) in board.indexed_iter() {
+      if ch == 'E' {
+          finish = pt;
+          break;
+      }
+  }
+  println!("{:?} {:?}", start, finish);
+#+end_src
+
+* Розмітка
+
+Створимо матрицю відстаней та фронт хвилі.
+
+#+begin_src rust :noweb-ref day16_1:Декларації
+  use std::collections::BTreeSet;
+#+end_src
+
+#+begin_src rust :noweb-ref day16_1:Дії
+  let mut dist = grid::Grid::init(board.rows(), board.cols(), 0);
+  let mut front = BTreeSet::new();
+#+end_src
+
+Для відлагодження заповнимо усі стінки відстаннями ~-1~
+
+Додамо початкову точку.
+
+#+begin_src rust :noweb-ref day16_1:Дії
+  ,*dist.get_mut(start.0, start.1).unwrap() = 1;
+  front.insert((1, (0, 1), start));
+#+end_src
+
+Перебираємо точки фронту, поки хвиля може розповсюджуватись.
+
+#+begin_src rust :noweb yes :noweb-ref day16_1:Дії
+  while let Some((d, dir, point)) = front.pop_first() {
+      <<day16_1:Обробити-точку>>
+  }
+  println!("{:#?}", dist);
+#+end_src
+
+Перебираємо усіх сусідів точки, які не є стінкою і встановлюємо там наступну відстань.
+
+#+begin_src rust :noweb-ref day16_1:Обробити-точку
+  for delta in [(-1, 0), (0, 1), (1, 0), (0, -1)] {
+      let row = (point.0 as isize + delta.0).try_into().unwrap();
+      let col = (point.1 as isize + delta.1).try_into().unwrap();
+      if *board.get(row, col).unwrap() != '#' && *dist.get(row, col).unwrap() == 0 {
+          if delta == dir {
+              ,*dist.get_mut(row, col).unwrap() = d + 1;
+              front.insert((d + 1, dir, (row, col)));
+          } else {
+              ,*dist.get_mut(row, col).unwrap() = d + 1001;
+              front.insert((d + 1001, delta, (row, col)));
+          }
+      }
+  }
+#+end_src
+
+Сам шлях шукати не треба, достатньо взяти відстань в кінцевій точці. При цьому віднімемо зайву ~1~, яку
+ми встановили в початковій точці.
+
+#+begin_src rust :noweb yes :noweb-ref day16_1:Дії
+  let result = *dist.get(finish.0, finish.1).unwrap() - 1;
+#+end_src
