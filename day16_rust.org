@@ -67,56 +67,58 @@
 
 * Розмітка
 
-Створимо матрицю відстаней та фронт хвилі.
+Створимо мапу оцінок для точок. Спочатку усі оцінки є "нескінченними" (~usize::MAX~), і для оптимізації
+будемо вважати, що якщо точки нема в мапі, її оцінка і є нескінченою. Однак, оцінка початкової точки
+дорівнює ~0~.
+
+#+begin_src rust :noweb-ref day16_1:Декларації
+  use std::collections::BTreeMap;
+#+end_src
+
+#+begin_src rust :noweb-ref day16_1:Дії
+  let mut weights = BTreeMap::new();
+  weights.insert((start, (0, 1)), 0);
+#+end_src
+
+Створимо множину точок для відвідування (/чергу/ обробки). Спочатку ця черга містить лише початкову
+точку. Кожна точка містить також на першому місці її оцінку, що дозволить автоматично сортувати точки.
 
 #+begin_src rust :noweb-ref day16_1:Декларації
   use std::collections::BTreeSet;
 #+end_src
 
 #+begin_src rust :noweb-ref day16_1:Дії
-  let mut dist = grid::Grid::init(board.rows(), board.cols(), 0);
-  let mut front = BTreeSet::new();
+  let mut queue = BTreeSet::new();
+  queue.insert((0, (start, (0, 1))));
 #+end_src
 
-Для відлагодження заповнимо усі стінки відстаннями ~-1~
-
-Додамо початкову точку.
-
-#+begin_src rust :noweb-ref day16_1:Дії
-  ,*dist.get_mut(start.0, start.1).unwrap() = 1;
-  front.insert((1, (0, 1), start));
-#+end_src
-
-Перебираємо точки фронту, поки хвиля може розповсюджуватись.
+Знаходимо першу точку з мінімальною оцінкою. Якщо ця оцінка більше, ніж в мапі оцінок, то це значить, що
+точка застаріла, і її можна пропустити.
 
 #+begin_src rust :noweb yes :noweb-ref day16_1:Дії
-  while let Some((d, dir, point)) = front.pop_first() {
+  while let Some((weight, (point, dir))) = queue.pop_first() {
+      if weight > *weights.entry((point, dir)).or_insert(usize::MAX) { continue; }
       <<day16_1:Обробити-точку>>
   }
-  println!("{:#?}", dist);
+  let result = [(-1, 0), (0, 1), (1, 0), (0, -1)].iter()
+      .map(|&step| *weights.entry((finish, step)).or_insert(usize::MAX))
+      .min().unwrap();
 #+end_src
 
-Перебираємо усіх сусідів точки, які не є стінкою і встановлюємо там наступну відстань.
+Для обраної точки перебираємо усіх сусідів. Відкидаємо усіх сусідів, де є стінка, а також сусідів, у яких
+оцінка менше, ніж оцінка переходу з поточної позиції. Для інших точок оновлюємо оцінку і вставляємо в
+чергу нову точку.
 
 #+begin_src rust :noweb-ref day16_1:Обробити-точку
-  for delta in [(-1, 0), (0, 1), (1, 0), (0, -1)] {
-      let row = (point.0 as isize + delta.0).try_into().unwrap();
-      let col = (point.1 as isize + delta.1).try_into().unwrap();
-      if *board.get(row, col).unwrap() != '#' && *dist.get(row, col).unwrap() == 0 {
-          if delta == dir {
-              ,*dist.get_mut(row, col).unwrap() = d + 1;
-              front.insert((d + 1, dir, (row, col)));
-          } else {
-              ,*dist.get_mut(row, col).unwrap() = d + 1001;
-              front.insert((d + 1001, delta, (row, col)));
+  for step in [(-1, 0), (0, 1), (1, 0), (0, -1)] {
+      let next = ((point.0 as isize + step.0).try_into().unwrap(),
+                  (point.1 as isize + step.1).try_into().unwrap());
+      let weight = weight + if step == dir { 1 } else { 1001 };
+      if *board.get(next.0, next.1).unwrap() == '#'
+          || *weights.entry((next, step)).or_insert(usize::MAX) <= weight {
+              continue;
           }
-      }
+      ,*weights.get_mut(&(next, step)).unwrap() = weight;
+      queue.insert((weight, (next, step)));
   }
-#+end_src
-
-Сам шлях шукати не треба, достатньо взяти відстань в кінцевій точці. При цьому віднімемо зайву ~1~, яку
-ми встановили в початковій точці.
-
-#+begin_src rust :noweb yes :noweb-ref day16_1:Дії
-  let result = *dist.get(finish.0, finish.1).unwrap() - 1;
 #+end_src

@@ -1,4 +1,5 @@
 use std::{fs, env, io::{self, BufRead}};
+use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 
 
@@ -31,26 +32,26 @@ fn main() {
         }
     }
     println!("{:?} {:?}", start, finish);
-    let mut dist = grid::Grid::init(board.rows(), board.cols(), 0);
-    let mut front = BTreeSet::new();
-    *dist.get_mut(start.0, start.1).unwrap() = 1;
-    front.insert((1, (0, 1), start));
-    while let Some((d, dir, point)) = front.pop_first() {
-        for delta in [(-1, 0), (0, 1), (1, 0), (0, -1)] {
-            let row = (point.0 as isize + delta.0).try_into().unwrap();
-            let col = (point.1 as isize + delta.1).try_into().unwrap();
-            if *board.get(row, col).unwrap() != '#' && *dist.get(row, col).unwrap() == 0 {
-                if delta == dir {
-                    *dist.get_mut(row, col).unwrap() = d + 1;
-                    front.insert((d + 1, dir, (row, col)));
-                } else {
-                    *dist.get_mut(row, col).unwrap() = d + 1001;
-                    front.insert((d + 1001, delta, (row, col)));
+    let mut weights = BTreeMap::new();
+    weights.insert((start, (0, 1)), 0);
+    let mut queue = BTreeSet::new();
+    queue.insert((0, (start, (0, 1))));
+    while let Some((weight, (point, dir))) = queue.pop_first() {
+        if weight > *weights.entry((point, dir)).or_insert(usize::MAX) { continue; }
+        for step in [(-1, 0), (0, 1), (1, 0), (0, -1)] {
+            let next = ((point.0 as isize + step.0).try_into().unwrap(),
+                        (point.1 as isize + step.1).try_into().unwrap());
+            let weight = weight + if step == dir { 1 } else { 1001 };
+            if *board.get(next.0, next.1).unwrap() == '#'
+                || *weights.entry((next, step)).or_insert(usize::MAX) <= weight {
+                    continue;
                 }
-            }
+            *weights.get_mut(&(next, step)).unwrap() = weight;
+            queue.insert((weight, (next, step)));
         }
     }
-    println!("{:#?}", dist);
-    let result = *dist.get(finish.0, finish.1).unwrap() - 1;
+    let result = [(-1, 0), (0, 1), (1, 0), (0, -1)].iter()
+        .map(|&step| *weights.entry((finish, step)).or_insert(usize::MAX))
+        .min().unwrap();
     println!("{}", result);
 }
