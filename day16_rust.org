@@ -4,6 +4,9 @@
 нестандартне визначення відстані, оскільки перехід в точку з іншим направленням коштує набагато дорожче,
 ніж продовження руху.
 
+З'ясувалося, що хвильовий алгоритм тут не підходить, замість нього треба використовувати [[https://ru.wikipedia.org/wiki/%D0%90%D0%BB%D0%B3%D0%BE%D1%80%D0%B8%D1%82%D0%BC_%D0%94%D0%B5%D0%B9%D0%BA%D1%81%D1%82%D1%80%D1%8B][алгоритм
+Дійкстри]].
+
 * Частина 1
 
 #+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day16_1.rs
@@ -15,6 +18,7 @@
 
   fn main() {
       <<day16:Прочитати-дані>>
+      <<day16:Знайти-оцінки>>
       <<day16_1:Дії>>
       println!("{}", result);
   }
@@ -65,17 +69,17 @@
   println!("{:?} {:?}", start, finish);
 #+end_src
 
-* Розмітка
+* Пошук оцінок
 
 Створимо мапу оцінок для точок. Спочатку усі оцінки є "нескінченними" (~usize::MAX~), і для оптимізації
 будемо вважати, що якщо точки нема в мапі, її оцінка і є нескінченою. Однак, оцінка початкової точки
 дорівнює ~0~.
 
-#+begin_src rust :noweb-ref day16_1:Декларації
+#+begin_src rust :noweb-ref day16:Декларації
   use std::collections::BTreeMap;
 #+end_src
 
-#+begin_src rust :noweb-ref day16_1:Дії
+#+begin_src rust :noweb-ref day16:Знайти-оцінки
   let mut weights = BTreeMap::new();
   weights.insert((start, (0, 1)), 0);
 #+end_src
@@ -83,11 +87,11 @@
 Створимо множину точок для відвідування (/чергу/ обробки). Спочатку ця черга містить лише початкову
 точку. Кожна точка містить також на першому місці її оцінку, що дозволить автоматично сортувати точки.
 
-#+begin_src rust :noweb-ref day16_1:Декларації
+#+begin_src rust :noweb-ref day16:Декларації
   use std::collections::BTreeSet;
 #+end_src
 
-#+begin_src rust :noweb-ref day16_1:Дії
+#+begin_src rust :noweb-ref day16:Знайти-оцінки
   let mut queue = BTreeSet::new();
   queue.insert((0, (start, (0, 1))));
 #+end_src
@@ -95,21 +99,18 @@
 Знаходимо першу точку з мінімальною оцінкою. Якщо ця оцінка більше, ніж в мапі оцінок, то це значить, що
 точка застаріла, і її можна пропустити.
 
-#+begin_src rust :noweb yes :noweb-ref day16_1:Дії
+#+begin_src rust :noweb yes :noweb-ref day16:Знайти-оцінки
   while let Some((weight, (point, dir))) = queue.pop_first() {
       if weight > *weights.entry((point, dir)).or_insert(usize::MAX) { continue; }
-      <<day16_1:Обробити-точку>>
+      <<day16:Обробити-точку>>
   }
-  let result = [(-1, 0), (0, 1), (1, 0), (0, -1)].iter()
-      .map(|&step| *weights.entry((finish, step)).or_insert(usize::MAX))
-      .min().unwrap();
 #+end_src
 
 Для обраної точки перебираємо усіх сусідів. Відкидаємо усіх сусідів, де є стінка, а також сусідів, у яких
 оцінка менше, ніж оцінка переходу з поточної позиції. Для інших точок оновлюємо оцінку і вставляємо в
 чергу нову точку.
 
-#+begin_src rust :noweb-ref day16_1:Обробити-точку
+#+begin_src rust :noweb-ref day16:Обробити-точку
   for step in [(-1, 0), (0, 1), (1, 0), (0, -1)] {
       let next = ((point.0 as isize + step.0).try_into().unwrap(),
                   (point.1 as isize + step.1).try_into().unwrap());
@@ -122,3 +123,83 @@
       queue.insert((weight, (next, step)));
   }
 #+end_src
+
+Знайдемо результат як мінімальну оцінку з усіх можливих.
+
+#+begin_src rust :noweb yes :noweb-ref day16_1:Дії
+  let result = [(-1, 0), (0, 1), (1, 0), (0, -1)].iter()
+      .map(|&step| *weights.entry((finish, step)).or_insert(usize::MAX))
+      .min().unwrap();
+#+end_src
+
+* Частина 2
+
+Ця частина повністю повторює пошук найкоротшого шляху, однак потім потрібно знайти усі точки, що належать
+усім таким шляхам. Використовуємо зворотню трасировку по знайденим оцінкам.
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day16_2.rs
+  <<day16:Декларації>>
+  <<day16_2:Декларації>>
+
+  <<day16:Визначення>>
+  <<day16_2:Визначення>>
+
+  fn main() {
+      <<day16:Прочитати-дані>>
+      <<day16:Знайти-оцінки>>
+      let result = 0;
+      <<day16_2:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+* Пошук оптимальних шляхів
+
+Створимо множину точок шляхів і помістимо в неї початкову точку.
+
+#+begin_src rust :noweb-ref day16_2:Дії
+  let mut points = BTreeSet::new();
+  points.insert(start);
+  println!("{}", *weights.get(&((13, 2), (0, 1))).unwrap());
+#+end_src
+
+** COMMENT Відлагодження
+
+Створимо чергу обробки, в яку помістимо початкову точку.
+
+#+begin_src rust :noweb yes :noweb-ref day16_2:Дії
+  let mut queue = BTreeSet::new();
+  queue.insert(finish);
+#+end_src
+
+Перебираємо точки з черги. Для кожної точки знаходимо напрямки з мінімальною вагою і додаємо ці точки до
+переліку та до черги.
+
+#+begin_src rust :noweb yes :noweb-ref day16_2:Дії
+  while let Some(point) = queue.pop_first() {
+      points.insert(point);
+      println!("{:?}", point);
+      if point != start {
+          let weight = [(-1, 0), (0, 1), (1, 0), (0, -1)].iter()
+              .map(|&step| *weights.entry((point, step)).or_insert(usize::MAX))
+              .min().unwrap();
+          if point == (7, 5) {
+              println!("{}", weight);
+          }
+          for step in [(-1, 0), (0, 1), (1, 0), (0, -1)] {
+              if point == (7, 5) {
+                  let next: (usize, usize) = ((point.0 as isize - step.0).try_into().unwrap(),
+                              (point.1 as isize - step.1).try_into().unwrap());
+                  println!("Weight {:?} {:?} - {}", step, next, *weights.entry((point, step)).or_insert(usize::MAX));
+              }
+              if *weights.entry((point, step)).or_insert(usize::MAX) == weight {
+                  let next = ((point.0 as isize - step.0).try_into().unwrap(),
+                              (point.1 as isize - step.1).try_into().unwrap());
+                  queue.insert(next);
+              }
+          }
+      }
+  }
+  println!("{:?} {}", points, points.len());
+#+end_src
+

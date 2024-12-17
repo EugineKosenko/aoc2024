@@ -51,8 +51,9 @@ fn main() {
             queue.insert((weight, (next, step)));
         }
     }
-    let result = [(-1, 0), (0, 1), (1, 0), (0, -1)].iter()
-        .map(|&step| *weights.entry((finish, step)).or_insert(usize::MAX))
-        .min().unwrap();
+    let result = 0;
+    let mut points = BTreeSet::new();
+    points.insert(start);
+    println!("{}", *weights.get(&((13, 2), (0, 1))).unwrap());
     println!("{}", result);
 }

@@ -1,0 +1,286 @@
+#+title: Adventure of Code, 2024, день 17, =Rust=
+
+* Частина 1
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day17_1.rs
+  <<day17:Декларації>>
+  <<day17_1:Декларації>>
+
+  <<day17:Визначення>>
+  <<day17_1:Визначення>>
+
+  fn main() {
+      <<day17:Прочитати-дані>>
+      <<day17_1:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day17:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day17:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let mut lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap());
+#+end_src
+
+Прочитаємо машину, користуючись регулярними виразами.
+
+#+begin_src rust :noweb-ref day17:Прочитати-дані
+  lazy_static::lazy_static! {
+      static ref RE_REGISTER: regex::Regex = regex::Regex::new(r"^Register [ABC]: (?P<value>\d+)$").unwrap();
+      static ref RE_PROGRAM: regex::Regex = regex::Regex::new(r"^Program: (?P<program>[\d,]+)$").unwrap();
+  }
+  let line = lines.next().unwrap();
+  let cps = RE_REGISTER.captures(&line).unwrap();
+  let ra = cps.name("value").unwrap().as_str().parse::<usize>().unwrap();
+  let line = lines.next().unwrap();
+  let cps = RE_REGISTER.captures(&line).unwrap();
+  let rb = cps.name("value").unwrap().as_str().parse::<usize>().unwrap();
+  let line = lines.next().unwrap();
+  let cps = RE_REGISTER.captures(&line).unwrap();
+  let rc = cps.name("value").unwrap().as_str().parse::<usize>().unwrap();
+  lines.next().unwrap();
+  let line = lines.next().unwrap();
+  let cps = RE_PROGRAM.captures(&line).unwrap();
+  let program = cps.name("program").unwrap().as_str()
+      .split(',')
+      .map(|command| command.parse::<usize>().unwrap())
+      .collect::<Vec<_>>();
+#+end_src
+
+Встановимо регістри.
+
+#+begin_src rust :noweb-ref day17_1:Дії
+  let (mut ra, mut rb, mut rc) = (ra, rb, rc);
+#+end_src
+
+Встановимо лічильник команд.
+
+#+begin_src rust :noweb-ref day17_1:Дії
+  let mut ip = 0;
+#+end_src
+
+Встановимо вектор виводу.
+
+#+begin_src rust :noweb-ref day17_1:Дії
+  let mut out = vec![];
+#+end_src
+
+Обробляємо програму.
+
+#+begin_src rust :noweb yes :noweb-ref day17_1:Дії
+  while ip < program.len() {
+      match program[ip] {
+          0 => {
+              let op = decode(program[ip + 1], ra, rb, rc);
+              <<day17_1:Обробити-adv>>
+              ip += 2;
+          },
+          1 => {
+              let op = program[ip + 1];
+              <<day17_1:Обробити-bxl>>
+              ip += 2;
+          }, 
+          2 => {
+              let op = decode(program[ip + 1], ra, rb, rc);
+              <<day17_1:Обробити-bst>>
+              ip += 2;
+          },
+          3 => {
+              let op = program[ip + 1];
+              <<day17_1:Обробити-jnz>>
+          },
+          4 => {
+              <<day17_1:Обробити-bxc>>
+              ip += 2;
+          },
+          5 => {
+              let op = decode(program[ip + 1], ra, rb, rc);
+              <<day17_1:Обробити-out>>
+              ip += 2;
+          },
+          6 => {
+              let op = decode(program[ip + 1], ra, rb, rc);
+              <<day17_1:Обробити-bdv>>
+              ip += 2;
+          },
+          7 => {
+              let op = decode(program[ip + 1], ra, rb, rc);
+              <<day17_1:Обробити-cdv>>
+              ip += 2;
+          }, 
+          c => panic!("Unexpected command {}", c)
+      }
+  }
+#+end_src
+
+Виводимо результат.
+
+#+begin_src rust :noweb-ref day17_1:Дії
+  let result = itertools::intersperse(out.iter().map(|out| out.to_string()), ",".to_string()).collect::<String>();
+#+end_src
+
+* Декодування =combo=-операнду
+
+#+begin_src rust :noweb-ref day17:Визначення
+  fn decode(op: usize, ra: usize, rb: usize, rc: usize) -> usize {
+      match op {
+          op @ 0..=3 => op,
+          4 => ra,
+          5 => rb,
+          6 => rc,
+          op => panic!("Unexpected combo operand {}", op)
+      }
+  }
+#+end_src
+
+* =adv=, =bdv=, =cdv=
+
+#+begin_src rust :noweb-ref day17_1:Обробити-adv
+  ra /= 1 << op;
+#+end_src
+
+#+begin_src rust :noweb-ref day17_1:Обробити-bdv
+  rb = ra / (1 << op);
+#+end_src
+
+#+begin_src rust :noweb-ref day17_1:Обробити-cdv
+  rc = ra / (1 << op);
+#+end_src
+
+* =bxl=
+
+#+begin_src rust :noweb-ref day17_1:Обробити-bxl
+  rb ^= op;
+#+end_src
+
+* =bst=
+
+#+begin_src rust :noweb-ref day17_1:Обробити-bst
+  rb = op % 8;
+#+end_src
+
+* =jnz=
+
+#+begin_src rust :noweb-ref day17_1:Обробити-jnz
+  if ra == 0 { ip += 2 } else { ip = op; }
+#+end_src
+
+* =bxc=
+
+#+begin_src rust :noweb-ref day17_1:Обробити-bxc
+   rb ^= rc;
+#+end_src
+
+* =out=
+
+#+begin_src rust :noweb-ref day17_1:Обробити-out
+  out.push(op % 8);
+#+end_src
+
+* Частина 2
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day17_2.rs
+  <<day17:Декларації>>
+  <<day17_2:Декларації>>
+
+  <<day17:Визначення>>
+  <<day17_2:Визначення>>
+
+  fn main() {
+      let mut result = 0;
+      <<day17:Прочитати-дані>>
+      <<day17_2:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Перебираємо в циклі початкове значення регістру ~ra~, отримуємо вихід і порівнюємо його з програмою.
+
+#+begin_src rust :noweb yes :noweb-ref day17_2:Дії
+  for ta in 0.. {
+      if ta % 10000000 == 0 { println!("{}", ta); }
+      <<day17_2:Виконати-програму>>
+      if program == out { result = ta; break; }
+  }
+#+end_src
+
+Встановимо регістри.
+
+#+begin_src rust :noweb-ref day17_2:Виконати-програму
+  let (mut ra, mut rb, mut rc) = (ta, rb, rc);
+#+end_src
+
+Встановимо лічильник команд.
+
+#+begin_src rust :noweb-ref day17_2:Виконати-програму
+  let mut ip = 0;
+#+end_src
+
+Встановимо вектор виводу.
+
+#+begin_src rust :noweb-ref day17_2:Виконати-програму
+  let mut out = vec![];
+#+end_src
+
+Обробляємо програму.
+
+#+begin_src rust :noweb yes :noweb-ref day17_2:Виконати-програму
+  while ip < program.len() {
+      match program[ip] {
+          0 => {
+              let op = decode(program[ip + 1], ra, rb, rc);
+              <<day17_1:Обробити-adv>>
+              ip += 2;
+          },
+          1 => {
+              let op = program[ip + 1];
+              <<day17_1:Обробити-bxl>>
+              ip += 2;
+          }, 
+          2 => {
+              let op = decode(program[ip + 1], ra, rb, rc);
+              <<day17_1:Обробити-bst>>
+              ip += 2;
+          },
+          3 => {
+              let op = program[ip + 1];
+              <<day17_1:Обробити-jnz>>
+          },
+          4 => {
+              <<day17_1:Обробити-bxc>>
+              ip += 2;
+          },
+          5 => {
+              let op = decode(program[ip + 1], ra, rb, rc);
+              <<day17_1:Обробити-out>>
+              ip += 2;
+          },
+          6 => {
+              let op = decode(program[ip + 1], ra, rb, rc);
+              <<day17_1:Обробити-bdv>>
+              ip += 2;
+          },
+          7 => {
+              let op = decode(program[ip + 1], ra, rb, rc);
+              <<day17_1:Обробити-cdv>>
+              ip += 2;
+          }, 
+          c => panic!("Unexpected command {}", c)
+      }
+  }
+#+end_src
+
+** TODO COMMENT Виводимо результат.
+
+#+begin_src rust :noweb-ref day17_2:Дії
+  let result = itertools::intersperse(out.iter().map(|out| out.to_string()), ",".to_string()).collect::<String>();
+#+end_src
+
