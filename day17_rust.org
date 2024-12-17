@@ -206,9 +206,9 @@
 
 #+begin_src rust :noweb yes :noweb-ref day17_2:Дії
   for ta in 0.. {
-      if ta % 10000000 == 0 { println!("{}", ta); }
+      if ta % 100000000 == 0 { println!("{}", ta); }
       <<day17_2:Виконати-програму>>
-      if program == out { result = ta; break; }
+      if iout == program.len() { result = ta; break; }
   }
 #+end_src
 
@@ -224,10 +224,10 @@
   let mut ip = 0;
 #+end_src
 
-Встановимо вектор виводу.
+Замість вектора виводу використовуємо лічильник співпадінь ~iout~.
 
 #+begin_src rust :noweb-ref day17_2:Виконати-програму
-  let mut out = vec![];
+  let mut iout = 0;
 #+end_src
 
 Обробляємо програму.
@@ -260,7 +260,7 @@
           },
           5 => {
               let op = decode(program[ip + 1], ra, rb, rc);
-              <<day17_1:Обробити-out>>
+              <<day17_2:Обробити-out>>
               ip += 2;
           },
           6 => {
@@ -276,6 +276,15 @@
           c => panic!("Unexpected command {}", c)
       }
   }
+#+end_src
+
+* =out=
+
+Замість обробки виводу просто перевіряємо, що виводиться черговий символ програми, інакше перериваємо
+програму, як неуспішну.
+
+#+begin_src rust :noweb-ref day17_2:Обробити-out
+  if op % 8 == program[iout] { iout += 1; } else { break; }
 #+end_src
 
 ** TODO COMMENT Виводимо результат.

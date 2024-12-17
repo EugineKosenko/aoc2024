@@ -40,10 +40,10 @@ fn main() {
         .map(|command| command.parse::<usize>().unwrap())
         .collect::<Vec<_>>();
     for ta in 0.. {
-        if ta % 10000000 == 0 { println!("{}", ta); }
+        if ta % 100000000 == 0 { println!("{}", ta); }
         let (mut ra, mut rb, mut rc) = (ta, rb, rc);
         let mut ip = 0;
-        let mut out = vec![];
+        let mut iout = 0;
         while ip < program.len() {
             match program[ip] {
                 0 => {
@@ -71,7 +71,7 @@ fn main() {
                 },
                 5 => {
                     let op = decode(program[ip + 1], ra, rb, rc);
-                    out.push(op % 8);
+                    if op % 8 == program[iout] { iout += 1; } else { break; }
                     ip += 2;
                 },
                 6 => {
@@ -87,7 +87,7 @@ fn main() {
                 c => panic!("Unexpected command {}", c)
             }
         }
-        if program == out { result = ta; break; }
+        if iout == program.len() { result = ta; break; }
     }
     println!("{}", result);
 }
