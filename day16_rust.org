@@ -45,7 +45,6 @@
   for line in lines {
       board.push_row(line.chars().collect());
   }
-  println!("{:#?}", board);
 #+end_src
 
 Отримаємо координати початкової і кінцевої точки.
@@ -66,7 +65,6 @@
           break;
       }
   }
-  println!("{:?} {:?}", start, finish);
 #+end_src
 
 * Пошук оцінок
@@ -147,7 +145,6 @@
   fn main() {
       <<day16:Прочитати-дані>>
       <<day16:Знайти-оцінки>>
-      let result = 0;
       <<day16_2:Дії>>
       println!("{}", result);
   }
@@ -155,51 +152,63 @@
 
 * Пошук оптимальних шляхів
 
-Створимо множину точок шляхів і помістимо в неї початкову точку.
+Створимо множину точок шляхів і додамо в неї кінцеву точку.
 
 #+begin_src rust :noweb-ref day16_2:Дії
-  let mut points = BTreeSet::new();
-  points.insert(start);
-  println!("{}", *weights.get(&((13, 2), (0, 1))).unwrap());
+  let mut points = BTreeSet::from([finish]);
 #+end_src
 
-** COMMENT Відлагодження
-
-Створимо чергу обробки, в яку помістимо початкову точку.
+Отримаємо оптимальну оцінку.
 
 #+begin_src rust :noweb yes :noweb-ref day16_2:Дії
-  let mut queue = BTreeSet::new();
-  queue.insert(finish);
+  let weight = [(-1, 0), (0, 1), (1, 0), (0, -1)].iter()
+      .map(|&step| *weights.entry((finish, step)).or_insert(usize::MAX))
+      .min().unwrap();
 #+end_src
 
-Перебираємо точки з черги. Для кожної точки знаходимо напрямки з мінімальною вагою і додаємо ці точки до
-переліку та до черги.
+Створимо чергу точок, в яку внесемо  усі попередні точки з мінімальною оцінкою.
 
 #+begin_src rust :noweb yes :noweb-ref day16_2:Дії
-  while let Some(point) = queue.pop_first() {
-      points.insert(point);
-      println!("{:?}", point);
-      if point != start {
-          let weight = [(-1, 0), (0, 1), (1, 0), (0, -1)].iter()
-              .map(|&step| *weights.entry((point, step)).or_insert(usize::MAX))
-              .min().unwrap();
-          if point == (7, 5) {
-              println!("{}", weight);
+  let mut queue = [(-1, 0), (0, 1), (1, 0), (0, -1)].iter()
+      .filter_map(|&step| {
+          if *weights.entry((finish, step)).or_insert(usize::MAX) == weight {
+              Some((((finish.0 as isize - step.0).try_into().unwrap(),
+                     (finish.1 as isize - step.1).try_into().unwrap()),
+                    step, weight))
+          } else {
+              None
           }
-          for step in [(-1, 0), (0, 1), (1, 0), (0, -1)] {
-              if point == (7, 5) {
-                  let next: (usize, usize) = ((point.0 as isize - step.0).try_into().unwrap(),
-                              (point.1 as isize - step.1).try_into().unwrap());
-                  println!("Weight {:?} {:?} - {}", step, next, *weights.entry((point, step)).or_insert(usize::MAX));
-              }
-              if *weights.entry((point, step)).or_insert(usize::MAX) == weight {
-                  let next = ((point.0 as isize - step.0).try_into().unwrap(),
-                              (point.1 as isize - step.1).try_into().unwrap());
-                  queue.insert(next);
-              }
+      })
+      .collect::<Vec<((usize, usize), (isize, isize), usize)>>();
+#+end_src
+
+Перебираємо точки з черги, поки вона не буде спустошена.
+
+#+begin_src rust :noweb yes :noweb-ref day16_2:Дії
+  while let Some((point, dir, weight)) = queue.pop() {
+      <<day16_2:Обробити-точку>>
+  }
+  let result = points.len();
+#+end_src
+
+Додаємо точку до рішення.
+
+#+begin_src rust :noweb yes :noweb-ref day16_2:Обробити-точку
+  points.insert(point);
+#+end_src
+
+Якщо це не початкова точка, перебираємо для неї усі оцінки для різних напрямків, і відбираємо ті із них,
+у яких оцінка відповідає мінімальній. Усі такі точки включаємо до черги.
+
+#+begin_src rust :noweb yes :noweb-ref day16_2:Обробити-точку
+  if point != start {
+      for step in [(-1, 0), (0, 1), (1, 0), (0, -1)] {
+          let weight = weight - if step == dir { 1 } else { 1001 };
+          if *weights.entry((point, step)).or_insert(usize::MAX) == weight {
+              let next = ((point.0 as isize - step.0).try_into().unwrap(),
+                          (point.1 as isize - step.1).try_into().unwrap());
+              queue.push((next, step, weight));
           }
       }
   }
-  println!("{:?} {}", points, points.len());
 #+end_src
-

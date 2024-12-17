@@ -16,7 +16,6 @@ fn main() {
     for line in lines {
         board.push_row(line.chars().collect());
     }
-    println!("{:#?}", board);
     let mut start = (0, 0);
     for (pt, &ch) in board.indexed_iter() {
         if ch == 'S' {
@@ -32,7 +31,6 @@ fn main() {
             break;
         }
     }
-    println!("{:?} {:?}", start, finish);
     let mut weights = BTreeMap::new();
     weights.insert((start, (0, 1)), 0);
     let mut queue = BTreeSet::new();
@@ -51,9 +49,34 @@ fn main() {
             queue.insert((weight, (next, step)));
         }
     }
-    let result = 0;
-    let mut points = BTreeSet::new();
-    points.insert(start);
-    println!("{}", *weights.get(&((13, 2), (0, 1))).unwrap());
+    let mut points = BTreeSet::from([finish]);
+    let weight = [(-1, 0), (0, 1), (1, 0), (0, -1)].iter()
+        .map(|&step| *weights.entry((finish, step)).or_insert(usize::MAX))
+        .min().unwrap();
+    let mut queue = [(-1, 0), (0, 1), (1, 0), (0, -1)].iter()
+        .filter_map(|&step| {
+            if *weights.entry((finish, step)).or_insert(usize::MAX) == weight {
+                Some((((finish.0 as isize - step.0).try_into().unwrap(),
+                       (finish.1 as isize - step.1).try_into().unwrap()),
+                      step, weight))
+            } else {
+                None
+            }
+        })
+        .collect::<Vec<((usize, usize), (isize, isize), usize)>>();
+    while let Some((point, dir, weight)) = queue.pop() {
+        points.insert(point);
+        if point != start {
+            for step in [(-1, 0), (0, 1), (1, 0), (0, -1)] {
+                let weight = weight - if step == dir { 1 } else { 1001 };
+                if *weights.entry((point, step)).or_insert(usize::MAX) == weight {
+                    let next = ((point.0 as isize - step.0).try_into().unwrap(),
+                                (point.1 as isize - step.1).try_into().unwrap());
+                    queue.push((next, step, weight));
+                }
+            }
+        }
+    }
+    let result = points.len();
     println!("{}", result);
 }

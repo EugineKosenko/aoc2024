@@ -16,7 +16,6 @@ fn main() {
     for line in lines {
         board.push_row(line.chars().collect());
     }
-    println!("{:#?}", board);
     let mut start = (0, 0);
     for (pt, &ch) in board.indexed_iter() {
         if ch == 'S' {
@@ -32,7 +31,6 @@ fn main() {
             break;
         }
     }
-    println!("{:?} {:?}", start, finish);
     let mut weights = BTreeMap::new();
     weights.insert((start, (0, 1)), 0);
     let mut queue = BTreeSet::new();
