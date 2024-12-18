@@ -1,0 +1,160 @@
+#+title: Adventure of Code, 2024, день 18, =Rust=
+
+Типова задача на хвильовий алгоритм для розв'ання лабіринтів.
+
+* Частина 1
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day18_1.rs
+  <<day18:Декларації>>
+  <<day18_1:Декларації>>
+
+  <<day18:Визначення>>
+  <<day18_1:Визначення>>
+
+  fn main() {
+      <<day18:Прочитати-дані>>
+      let mut result = 0;
+      <<day18:Знайти-вихід>>
+      <<day18_1:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day18:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day18:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let mut lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap());
+#+end_src
+
+Визначимо розміри дошки.
+
+#+begin_src rust :noweb-ref day18:Прочитати-дані
+  let rows = args[2].parse::<usize>().unwrap();
+  let cols = args[3].parse::<usize>().unwrap();
+#+end_src
+
+Визначимо кількість блоків.
+
+#+begin_src rust :noweb-ref day18:Прочитати-дані
+  let count = args[4].parse::<usize>().unwrap();
+#+end_src
+
+Прочитаємо дошку. 
+
+#+begin_src rust :noweb-ref day18:Прочитати-дані
+  let mut board = grid::Grid::init(rows, cols, '.');
+  for _ in 0..count {
+      let line = lines.next().unwrap();
+      let point = line
+          .split_once(',').unwrap();
+      let point = (point.0.parse::<usize>().unwrap(), point.1.parse::<usize>().unwrap());
+      ,*board.get_mut(point.1, point.0).unwrap() = '#';
+  }
+#+end_src
+
+Встановимо координати початкової і кінцевої точки.
+
+#+begin_src rust :noweb-ref day18:Прочитати-дані
+  let start = (0, 0);
+  let finish = (rows - 1, cols - 1);
+#+end_src
+
+Створимо матрицю відстаней.
+
+#+begin_src rust :noweb-ref day18:Знайти-вихід
+  let mut dists = grid::Grid::init(rows, cols, 0);
+#+end_src
+
+Створимо чергу і додамо туди початкову точку. Черга впорядкована за відстанями.
+
+#+begin_src rust :noweb-ref day18:Декларації
+  use std::collections::BTreeSet;
+#+end_src
+
+#+begin_src rust :noweb-ref day18:Знайти-вихід
+  let mut queue = BTreeSet::from([(1, start)]);
+#+end_src
+
+Перебираємо точки в черзі, поки вона не стане пустою.
+
+#+begin_src rust :noweb yes :noweb-ref day18:Знайти-вихід
+  let mut is_found = false;
+  while let Some((dist, point)) = queue.pop_first() {
+      <<day18:Обробити-точку>>
+  }
+#+end_src
+
+Якщо це кінцева точка, то результат знайдено. При цьому враховуємо, що усі дистанції на ~1~ більше
+реальних.
+
+#+begin_src rust :noweb-ref day18:Обробити-точку
+  if point == finish { result = dist - 1; is_found = true; break; }
+#+end_src
+
+Встановлюємо відстань.
+
+#+begin_src rust :noweb-ref day18:Обробити-точку
+  ,*dists.get_mut(point.0, point.1).unwrap() = dist;
+#+end_src
+
+Перебираємо усіх сусідів і додаємо їх до черги.
+
+#+begin_src rust :noweb-ref day18:Обробити-точку
+  for step in [(-1, 0), (0, 1), (1, 0), (0, -1)] {
+      let row: usize = match (point.0 as isize + step.0).try_into() {
+          Err(_) => { continue; },
+          Ok(row) => row
+      };
+      if row == rows { continue; }
+      let col: usize = match (point.1 as isize + step.1).try_into() {
+          Err(_) => { continue; },
+          Ok(col) => col
+      };
+      if col == cols { continue; }
+      if *board.get(row, col).unwrap() == '#' { continue; }
+      if *dists.get(row, col).unwrap() != 0 { continue; }
+      queue.insert((dist + 1, (row, col)));
+  }
+#+end_src
+
+* Частина 2
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day18_2.rs
+  <<day18:Декларації>>
+  <<day18_2:Декларації>>
+
+  <<day18:Визначення>>
+  <<day18_2:Визначення>>
+
+  fn main() {
+      <<day18:Прочитати-дані>>
+      let mut result = 0;
+      <<day18_2:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Продовжуємо додавати до дошки блоки, аналізуючи кожного разу, чи є черга пустою. Пуста черга означає, що
+ми не можемо знайти необхідного шляху.
+
+#+begin_src rust :noweb yes :noweb-ref day18_2:Дії
+  for i in count.. {
+      let line = lines.next().unwrap();
+      let point = line
+          .split_once(',').unwrap();
+      let point = (point.0.parse::<usize>().unwrap(), point.1.parse::<usize>().unwrap());
+      ,*board.get_mut(point.1, point.0).unwrap() = '#';
+      println!("{} {:?}", i, point);
+      <<day18:Знайти-вихід>>
+      if !is_found { result = i; break; }
+  }
+#+end_src
+
