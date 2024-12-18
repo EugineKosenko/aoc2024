@@ -55,7 +55,7 @@ fn main() {
             let px = if px < 0 { px + width as isize } else { px };
             let py = (robot.0.1 + robot.1.1) % height as isize;
             let py = if py < 0 { py + height as isize } else { py };
-            (*robot).0 = (px, py);
+            robot.0 = (px, py);
         }
     }
     

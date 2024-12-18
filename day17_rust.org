@@ -11,6 +11,7 @@
 
   fn main() {
       <<day17:Прочитати-дані>>
+      <<day17:Виконати-програму>>
       <<day17_1:Дії>>
       println!("{}", result);
   }
@@ -57,63 +58,63 @@
 
 Встановимо регістри.
 
-#+begin_src rust :noweb-ref day17_1:Дії
+#+begin_src rust :noweb-ref day17:Виконати-програму
   let (mut ra, mut rb, mut rc) = (ra, rb, rc);
 #+end_src
 
 Встановимо лічильник команд.
 
-#+begin_src rust :noweb-ref day17_1:Дії
+#+begin_src rust :noweb-ref day17:Виконати-програму
   let mut ip = 0;
 #+end_src
 
 Встановимо вектор виводу.
 
-#+begin_src rust :noweb-ref day17_1:Дії
+#+begin_src rust :noweb-ref day17:Виконати-програму
   let mut out = vec![];
 #+end_src
 
 Обробляємо програму.
 
-#+begin_src rust :noweb yes :noweb-ref day17_1:Дії
+#+begin_src rust :noweb yes :noweb-ref day17:Виконати-програму
   while ip < program.len() {
       match program[ip] {
           0 => {
               let op = decode(program[ip + 1], ra, rb, rc);
-              <<day17_1:Обробити-adv>>
+              <<day17:Обробити-adv>>
               ip += 2;
           },
           1 => {
               let op = program[ip + 1];
-              <<day17_1:Обробити-bxl>>
+              <<day17:Обробити-bxl>>
               ip += 2;
           }, 
           2 => {
               let op = decode(program[ip + 1], ra, rb, rc);
-              <<day17_1:Обробити-bst>>
+              <<day17:Обробити-bst>>
               ip += 2;
           },
           3 => {
               let op = program[ip + 1];
-              <<day17_1:Обробити-jnz>>
+              <<day17:Обробити-jnz>>
           },
           4 => {
-              <<day17_1:Обробити-bxc>>
+              <<day17:Обробити-bxc>>
               ip += 2;
           },
           5 => {
               let op = decode(program[ip + 1], ra, rb, rc);
-              <<day17_1:Обробити-out>>
+              <<day17:Обробити-out>>
               ip += 2;
           },
           6 => {
               let op = decode(program[ip + 1], ra, rb, rc);
-              <<day17_1:Обробити-bdv>>
+              <<day17:Обробити-bdv>>
               ip += 2;
           },
           7 => {
               let op = decode(program[ip + 1], ra, rb, rc);
-              <<day17_1:Обробити-cdv>>
+              <<day17:Обробити-cdv>>
               ip += 2;
           }, 
           c => panic!("Unexpected command {}", c)
@@ -143,45 +144,45 @@
 
 * =adv=, =bdv=, =cdv=
 
-#+begin_src rust :noweb-ref day17_1:Обробити-adv
+#+begin_src rust :noweb-ref day17:Обробити-adv
   ra /= 1 << op;
 #+end_src
 
-#+begin_src rust :noweb-ref day17_1:Обробити-bdv
+#+begin_src rust :noweb-ref day17:Обробити-bdv
   rb = ra / (1 << op);
 #+end_src
 
-#+begin_src rust :noweb-ref day17_1:Обробити-cdv
+#+begin_src rust :noweb-ref day17:Обробити-cdv
   rc = ra / (1 << op);
 #+end_src
 
 * =bxl=
 
-#+begin_src rust :noweb-ref day17_1:Обробити-bxl
+#+begin_src rust :noweb-ref day17:Обробити-bxl
   rb ^= op;
 #+end_src
 
 * =bst=
 
-#+begin_src rust :noweb-ref day17_1:Обробити-bst
+#+begin_src rust :noweb-ref day17:Обробити-bst
   rb = op % 8;
 #+end_src
 
 * =jnz=
 
-#+begin_src rust :noweb-ref day17_1:Обробити-jnz
+#+begin_src rust :noweb-ref day17:Обробити-jnz
   if ra == 0 { ip += 2 } else { ip = op; }
 #+end_src
 
 * =bxc=
 
-#+begin_src rust :noweb-ref day17_1:Обробити-bxc
+#+begin_src rust :noweb-ref day17:Обробити-bxc
    rb ^= rc;
 #+end_src
 
 * =out=
 
-#+begin_src rust :noweb-ref day17_1:Обробити-out
+#+begin_src rust :noweb-ref day17:Обробити-out
   out.push(op % 8);
 #+end_src
 
@@ -195,12 +196,69 @@
   <<day17_2:Визначення>>
 
   fn main() {
-      let mut result = 0;
       <<day17:Прочитати-дані>>
       <<day17_2:Дії>>
       println!("{}", result);
   }
 #+end_src
+
+Для рішення використовуємо [[file:Ge_kWMGWoAAKX0-.jpeg][алгоритм-підказку]].
+
+Створимо множину кандидатів (=cnds=) для реєстра ~a~.
+
+#+begin_src rust :noweb-ref day17_2:Декларації
+  use std::collections::BTreeSet;
+#+end_src
+
+#+begin_src rust :noweb-ref day17_2:Дії
+  let mut cnds = BTreeSet::from([0]);
+#+end_src
+
+Перебираємо довжину фрагмента програми, що оновлюється (~n~), від ~1~ до довжини програми.
+
+#+begin_src rust :noweb yes :noweb-ref day17_2:Дії
+  for n in 1..program.len() {
+      <<day17_2:Обробити-кандидатів>>
+  }
+#+end_src
+
+"Згортаємо" множину кандидатів по модулю ~8^n~.
+
+#+begin_src rust :noweb-ref day17_2:Обробити-кандидатів
+  cnds = cnds.iter().map(|cnd| cnd % (1 << 3 * n)).collect();
+#+end_src
+
+"Розширимо" множину кандидатів. Для цього перебираємо кандидатів, і для кожного кандидата додаємо множину
+нових значень.
+
+#+begin_src rust :noweb yes :noweb-ref day17_2:Обробити-кандидатів
+  cnds = cnds.iter()
+      .flat_map(|c| {
+          (0..1024)
+              .map(move |i| c + (i << 3 * (n - 1)))
+              .filter_map(|ta| {
+                  let ra = ta;
+                  <<day17:Виконати-програму>>
+                  if n <= out.len() && out[0..n] == program[0..n] { Some(ta) } else { None }
+              })
+      })
+      .collect();
+#+end_src
+
+В кінці обробки знаходимо першого кандидата, у якого після виконання програми вихід в точності співпадає
+з програмою.
+
+#+begin_src rust :noweb yes :noweb-ref day17_2:Дії
+  let result = cnds.into_iter()
+      .filter_map(|ta| {
+          let ra = ta;
+          <<day17:Виконати-програму>>
+          if out == program { Some(ta) } else { None }
+      })
+      .next().unwrap();
+#+end_src
+
+** COMMENT [Застаріло] Відлагодження
 
 Перебираємо в циклі початкове значення регістру ~ra~, отримуємо вихід і порівнюємо його з програмою.
 
@@ -278,7 +336,7 @@
   }
 #+end_src
 
-* =out=
+* COMMENT =out=
 
 Замість обробки виводу просто перевіряємо, що виводиться черговий символ програми, інакше перериваємо
 програму, як неуспішну.

@@ -1,5 +1,5 @@
 use std::{fs, env, io::{self, BufRead}};
-
+use std::collections::BTreeSet;
 
 fn decode(op: usize, ra: usize, rb: usize, rc: usize) -> usize {
     match op {
@@ -13,7 +13,6 @@ fn decode(op: usize, ra: usize, rb: usize, rc: usize) -> usize {
 
 
 fn main() {
-    let mut result = 0;
     let args: Vec<String> = env::args().collect();
     let file = fs::File::open(&args[1]).unwrap();
     let mut lines = io::BufReader::new(file)
@@ -39,55 +38,117 @@ fn main() {
         .split(',')
         .map(|command| command.parse::<usize>().unwrap())
         .collect::<Vec<_>>();
-    for ta in 0.. {
-        if ta % 100000000 == 0 { println!("{}", ta); }
-        let (mut ra, mut rb, mut rc) = (ta, rb, rc);
-        let mut ip = 0;
-        let mut iout = 0;
-        while ip < program.len() {
-            match program[ip] {
-                0 => {
-                    let op = decode(program[ip + 1], ra, rb, rc);
-                    ra /= 1 << op;
-                    ip += 2;
-                },
-                1 => {
-                    let op = program[ip + 1];
-                    rb ^= op;
-                    ip += 2;
-                }, 
-                2 => {
-                    let op = decode(program[ip + 1], ra, rb, rc);
-                    rb = op % 8;
-                    ip += 2;
-                },
-                3 => {
-                    let op = program[ip + 1];
-                    if ra == 0 { ip += 2 } else { ip = op; }
-                },
-                4 => {
-                    rb ^= rc;
-                    ip += 2;
-                },
-                5 => {
-                    let op = decode(program[ip + 1], ra, rb, rc);
-                    if op % 8 == program[iout] { iout += 1; } else { break; }
-                    ip += 2;
-                },
-                6 => {
-                    let op = decode(program[ip + 1], ra, rb, rc);
-                    rb = ra / (1 << op);
-                    ip += 2;
-                },
-                7 => {
-                    let op = decode(program[ip + 1], ra, rb, rc);
-                    rc = ra / (1 << op);
-                    ip += 2;
-                }, 
-                c => panic!("Unexpected command {}", c)
-            }
-        }
-        if iout == program.len() { result = ta; break; }
+    let mut cnds = BTreeSet::from([0]);
+    for n in 1..program.len() {
+        cnds = cnds.iter().map(|cnd| cnd % (1 << 3 * n)).collect();
+        cnds = cnds.iter()
+            .flat_map(|c| {
+                (0..1024)
+                    .map(move |i| c + (i << 3 * (n - 1)))
+                    .filter_map(|ta| {
+                        let ra = ta;
+                        let (mut ra, mut rb, mut rc) = (ra, rb, rc);
+                        let mut ip = 0;
+                        let mut out = vec![];
+                        while ip < program.len() {
+                            match program[ip] {
+                                0 => {
+                                    let op = decode(program[ip + 1], ra, rb, rc);
+                                    ra /= 1 << op;
+                                    ip += 2;
+                                },
+                                1 => {
+                                    let op = program[ip + 1];
+                                    rb ^= op;
+                                    ip += 2;
+                                }, 
+                                2 => {
+                                    let op = decode(program[ip + 1], ra, rb, rc);
+                                    rb = op % 8;
+                                    ip += 2;
+                                },
+                                3 => {
+                                    let op = program[ip + 1];
+                                    if ra == 0 { ip += 2 } else { ip = op; }
+                                },
+                                4 => {
+                                    rb ^= rc;
+                                    ip += 2;
+                                },
+                                5 => {
+                                    let op = decode(program[ip + 1], ra, rb, rc);
+                                    out.push(op % 8);
+                                    ip += 2;
+                                },
+                                6 => {
+                                    let op = decode(program[ip + 1], ra, rb, rc);
+                                    rb = ra / (1 << op);
+                                    ip += 2;
+                                },
+                                7 => {
+                                    let op = decode(program[ip + 1], ra, rb, rc);
+                                    rc = ra / (1 << op);
+                                    ip += 2;
+                                }, 
+                                c => panic!("Unexpected command {}", c)
+                            }
+                        }
+                        if n <= out.len() && out[0..n] == program[0..n] { Some(ta) } else { None }
+                    })
+            })
+            .collect();
     }
+    let result = cnds.into_iter()
+        .filter_map(|ta| {
+            let ra = ta;
+            let (mut ra, mut rb, mut rc) = (ra, rb, rc);
+            let mut ip = 0;
+            let mut out = vec![];
+            while ip < program.len() {
+                match program[ip] {
+                    0 => {
+                        let op = decode(program[ip + 1], ra, rb, rc);
+                        ra /= 1 << op;
+                        ip += 2;
+                    },
+                    1 => {
+                        let op = program[ip + 1];
+                        rb ^= op;
+                        ip += 2;
+                    }, 
+                    2 => {
+                        let op = decode(program[ip + 1], ra, rb, rc);
+                        rb = op % 8;
+                        ip += 2;
+                    },
+                    3 => {
+                        let op = program[ip + 1];
+                        if ra == 0 { ip += 2 } else { ip = op; }
+                    },
+                    4 => {
+                        rb ^= rc;
+                        ip += 2;
+                    },
+                    5 => {
+                        let op = decode(program[ip + 1], ra, rb, rc);
+                        out.push(op % 8);
+                        ip += 2;
+                    },
+                    6 => {
+                        let op = decode(program[ip + 1], ra, rb, rc);
+                        rb = ra / (1 << op);
+                        ip += 2;
+                    },
+                    7 => {
+                        let op = decode(program[ip + 1], ra, rb, rc);
+                        rc = ra / (1 << op);
+                        ip += 2;
+                    }, 
+                    c => panic!("Unexpected command {}", c)
+                }
+            }
+            if out == program { Some(ta) } else { None }
+        })
+        .next().unwrap();
     println!("{}", result);
 }
