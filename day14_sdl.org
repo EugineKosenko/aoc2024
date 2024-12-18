@@ -1,0 +1,304 @@
+#+title: Adventure of Code, 2024, день 14, візуалізація на =Rust/SDL=
+
+В другій частині необхідно знайти крок, на якому роботи складуть ялинку, однак форма ялинки завданням не
+визначена. Тому необхідно візуалізувати рух роботів, і в переборі спробувати знайти ялинку на одному із
+кадрів "людським оком".
+
+Для візуалізації була обрана бібліотека =SDL2=. [[file:src/bin/day14_gpt.rs][Прототип]] був створений "з нуля" генератором =ChatGPT=,
+однак потім це рішення було повністю переглянуто і реалізовано з урахуванням можливих помилок у коді.
+
+* Головний файл
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day14_sdl.rs
+  <<day14-sdl:Декларації>>
+
+  <<day14-sdl:Визначення>>
+
+  fn main() {
+      <<day14-sdl:Прочитати-дані>>
+      <<day14-sdl:Встановити-sdl>>
+      <<day14-sdl:Дії>>
+  }
+#+end_src
+
+* Розміри
+
+Визначимо розміри дошки як константи.
+
+#+begin_src rust :noweb-ref day14-sdl:Визначення
+  const WIDTH: u32 = 101;
+  const HEIGHT: u32 = 103;
+#+end_src
+
+Визначимо масштаб (=scale=). Щоб уникнути викривлень, зробимо масштаб однаковим для обох осей.
+
+#+begin_src rust :noweb-ref day14-sdl:Визначення
+  const SCALE: u32 = 5;
+#+end_src
+
+Визначимо розміри вікна як константи. Щоб уникнути викривлень, зробимо ці розміри пропорційними до
+розмірів дошки.
+
+#+begin_src rust :noweb-ref day14-sdl:Визначення
+  const WIN_WIDTH: u32 = SCALE * WIDTH;
+  const WIN_HEIGHT: u32 = SCALE * HEIGHT;
+#+end_src
+
+* Читання даних
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day14-sdl:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day14-sdl:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap());
+#+end_src
+
+Прочитаємо роботів.
+
+#+begin_src rust :noweb-ref day14-sdl:Прочитати-дані
+  lazy_static::lazy_static! {
+      static ref RE_ROBOT: regex::Regex = regex::Regex::new(r"^p=(?P<px>-?\d+),(?P<py>-?\d+) v=(?P<vx>-?\d+),(?P<vy>-?\d+)$").unwrap();
+  }
+  let mut robots = lines
+      .map(|line| {
+          let cps = RE_ROBOT.captures(&line).unwrap();
+          let px = cps.name("px").unwrap().as_str().parse::<i32>().unwrap();
+          let py = cps.name("py").unwrap().as_str().parse::<i32>().unwrap();
+          let vx = cps.name("vx").unwrap().as_str().parse::<i32>().unwrap();
+          let vy = cps.name("vy").unwrap().as_str().parse::<i32>().unwrap();
+          ((px, py), (vx, vy))
+      })
+      .collect::<Vec<_>>();
+#+end_src
+
+* Ініціалізація =SDL=
+
+Контекст використовується пізніше для створення циклу подій. Усі інші рівні --- відео-система (=video=) і
+вікно (=window=) згортаються до канви (=canvas=). Для канви встановлюємо колір фону (~BLACK~), очищаємо
+її і встановлюємо як поточну.
+
+#+begin_src rust :noweb-ref day14-sdl:Декларації
+  use sdl2::pixels::Color;
+#+end_src
+
+#+begin_src rust :noweb-ref day14-sdl:Встановити-sdl
+  let context = sdl2::init().unwrap();
+  let mut canvas = context.video().unwrap()
+      .window("Day 4, part 2", WIN_WIDTH, WIN_HEIGHT)
+      .position_centered()
+      .build().unwrap()
+      .into_canvas().build().unwrap();
+#+end_src
+
+* Цикл обробки
+
+Для обробки подій створимо отримувач подій (=events=).
+
+#+begin_src rust :noweb-ref day14-sdl:Дії
+  let mut events = context.event_pump().unwrap();
+#+end_src
+
+Основний цикл є нескінченим, але з нього можна вийти в разі події виходу, тому помітимо його міткою ~running~.
+
+Всередині основного цикла ми виконуємо цикл обробки подій, в якому особливим чином обробляємо подію
+виходу (=quit=) та натискання на клавішу виходу (=escape=).
+
+#+begin_src rust :noweb-ref day14-sdl:Декларації
+  use sdl2::{event::Event, keyboard::Keycode};
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref day14-sdl:Дії
+  <<day14-sdl:Встановити-параметри>>
+  'running: loop {
+      canvas.set_draw_color(Color::BLACK);
+      canvas.clear();
+      <<day14-sdl:Намалювати-зображення>>
+      canvas.present();
+      for event in events.poll_iter() {
+          match event {
+              Event::Quit {..}
+              | Event::KeyDown { keycode: Some(Keycode::Escape), ..} => { break 'running; },
+              <<day14-sdl:Обробити-подію>>
+              _ => { /* nothing */ }
+          }
+      }
+      <<day14-sdl:Зробити-крок>>
+  }
+#+end_src
+
+* Малювання сітки
+
+Сітка робить більш дошку більш контрастною.
+
+#+begin_src rust :noweb-ref day14-sdl:Намалювати-зображення
+  canvas.set_draw_color(Color::GRAY);
+  for i in 0..=WIDTH {
+      let x = (i * SCALE) as i32;
+      canvas.draw_line((x, 0), (x, WIN_HEIGHT as i32)).unwrap();
+  }
+
+  for i in 0..=HEIGHT {
+      let y = (i * SCALE) as i32;
+      canvas.draw_line((0, y), (WIN_WIDTH as i32, y)).unwrap();
+  }
+#+end_src
+
+* Малювання роботів
+
+#+begin_src rust :noweb-ref day14-sdl:Намалювати-зображення
+  canvas.set_draw_color(Color::GREEN);
+  for &((x, y), _) in &robots {
+      canvas.fill_rect(Rect::new(x * SCALE as i32, y * SCALE as i32, SCALE as u32, SCALE as u32)).unwrap();
+  }
+#+end_src
+
+* Малювання мітки кроку
+
+Визначимо лічильник кроків.
+
+#+begin_src rust :noweb-ref day14-sdl:Встановити-параметри
+  let mut step = 0;
+#+end_src
+
+Визначимо шрифт, вказавши повний шлях до системного шрифта.
+
+#+begin_src rust :noweb-ref day14-sdl:Визначення
+  const FONT: &'static str = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
+#+end_src
+
+Створимо шрифт в розділі загальної ініціалізації =sdl=.
+
+#+begin_src rust :noweb-ref day14-sdl:Встановити-sdl
+  let ttf = sdl2::ttf::init().unwrap();
+  let font = ttf.load_font(FONT, 32).unwrap();
+#+end_src
+
+Створюємо поверхню (=surface=), і визначаємо її розміри (=width= і =height=).
+
+#+begin_src rust :noweb-ref day14-sdl:Намалювати-зображення
+  let surface = font
+      .render(&format!("Step: {}", step))
+      .blended(Color::WHITE).unwrap();
+#+end_src
+
+Створюємо текстуру для поверхні.
+
+#+begin_src rust :noweb-ref day14-sdl:Намалювати-зображення
+  let creator = canvas.texture_creator();
+  let texture = creator
+      .create_texture_from_surface(&surface).unwrap();
+#+end_src
+
+Малюємо текст в верхньому правому кутку.
+
+#+begin_src rust :noweb-ref day14-sdl:Декларації
+  use sdl2::rect::Rect;
+#+end_src
+
+#+begin_src rust :noweb-ref day14-sdl:Намалювати-зображення
+  canvas.copy(
+      &texture, None,
+      Rect::new((WIN_WIDTH - surface.width() as u32) as i32 - 10, 10, surface.width(), surface.height())).unwrap();
+#+end_src
+
+* Кроки вперед і назад
+
+Покроковий перебір можливий, тільки коли [[id:2fac240e-4478-4b88-80fd-006ede4bde95][режим автоматичної прокрутки]] виключений.
+
+Кроки виконуються за допомогою клавіши вправо (=right=) при русі вперед і клавіши вліво (=left=) при русі
+назад.
+
+В автоматичному режимі ці клавіші змінюють направлення руху.
+
+#+begin_src rust :noweb-ref day14-sdl:Встановити-параметри
+  let mut dir = 1;
+#+end_src
+
+#+begin_src rust :noweb-sep ",\n" :noweb-ref day14-sdl:Обробити-подію
+  Event::KeyDown { keycode: Some(Keycode::Right), ..} => {
+      if !is_auto {
+          step += 1;
+          for ((ref mut x, ref mut y), (vx, vy)) in &mut robots {
+              ,*x = (*x + *vx).rem_euclid(WIDTH as i32);
+              ,*y = (*y + *vy).rem_euclid(HEIGHT as i32);
+          }
+      } else {
+          dir = 1;
+      }
+  },
+
+  Event::KeyDown { keycode: Some(Keycode::Left), ..} => {
+      if !is_auto {
+          step -= 1;
+          for ((ref mut x, ref mut y), (vx, vy)) in &mut robots {
+              ,*x = (*x - *vx).rem_euclid(WIDTH as i32);
+              ,*y = (*y - *vy).rem_euclid(HEIGHT as i32);
+          }
+      } else {
+          dir = -1;
+      }
+  }
+#+end_src
+
+* Режим автоматичної прокрутки
+:PROPERTIES:
+:ID:       2fac240e-4478-4b88-80fd-006ede4bde95
+:END:
+
+Цей режим (=auto=) спочатку виключений.
+
+#+begin_src rust :noweb-ref day14-sdl:Встановити-параметри
+  let mut is_auto = false;
+#+end_src
+
+Режим автоматичної прокрутки він переключається по натисканню клавіші пробілу (=space=).
+
+#+begin_src rust :noweb-sep ",\n" :noweb-ref day14-sdl:Обробити-подію
+  Event::KeyDown { keycode: Some(Keycode::Space), ..} => {
+      is_auto = !is_auto;
+  }
+#+end_src
+
+Визначимо затримку (=delay=) між кадрами (у мілісекундах), яка визначає швидкість прокрутки. Спочатку ця
+затримка максимальна.
+
+#+begin_src rust :noweb-ref day14-sdl:Визначення
+  const MAX_DELAY: u64 = 1000;
+  const STEP_DELAY: u64 = 10;
+#+end_src
+
+#+begin_src rust :noweb-ref day14-sdl:Встановити-параметри
+  let mut delay = MAX_DELAY;
+#+end_src
+
+Затримка змінюється за допомогою клавіш вверх і вниз.
+
+#+begin_src rust :noweb-sep ",\n" :noweb-ref day14-sdl:Обробити-подію
+  Event::KeyDown { keycode: Some(Keycode::Down), ..} => { if delay < MAX_DELAY { delay += STEP_DELAY; } },
+  Event::KeyDown { keycode: Some(Keycode::Up), ..} => { if delay > 0 { delay -= STEP_DELAY; } }
+#+end_src
+
+Зробимо крок в автоматичному режимі.
+
+#+begin_src rust :noweb-ref day14-sdl:Декларації
+  use std::time::Duration;
+#+end_src
+
+#+begin_src rust :noweb-ref day14-sdl:Зробити-крок
+  if is_auto {
+      step += dir;
+      for ((ref mut x, ref mut y), (vx, vy)) in &mut robots {
+          ,*x = (*x + dir * *vx).rem_euclid(WIDTH as i32);
+          ,*y = (*y + dir * *vy).rem_euclid(HEIGHT as i32);
+      }
+      std::thread::sleep(Duration::from_millis(delay));
+  }
+#+end_src
+
