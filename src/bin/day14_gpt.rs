@@ -4,7 +4,6 @@ use sdl2::rect::Rect;
 use sdl2::render::Canvas;
 use sdl2::video::Window;
 use sdl2::EventPump;
-use sdl2::ttf::Font;
 use std::time::Duration;
 
 lazy_static::lazy_static! {
