@@ -45,7 +45,7 @@ fn main() {
             .flat_map(|c| {
                 (0..1024)
                     .map(move |i| c + (i << 3 * (n - 1)))
-                    .filter_map(|ta| {
+                    .filter(|&ta| {
                         let ra = ta;
                         let (mut ra, mut rb, mut rc) = (ra, rb, rc);
                         let mut ip = 0;
@@ -93,13 +93,13 @@ fn main() {
                                 c => panic!("Unexpected command {}", c)
                             }
                         }
-                        if n <= out.len() && out[0..n] == program[0..n] { Some(ta) } else { None }
+                        n <= out.len() && out[0..n] == program[0..n]
                     })
             })
             .collect();
     }
     let result = cnds.into_iter()
-        .filter_map(|ta| {
+        .find(|&ta| {
             let ra = ta;
             let (mut ra, mut rb, mut rc) = (ra, rb, rc);
             let mut ip = 0;
@@ -147,8 +147,8 @@ fn main() {
                     c => panic!("Unexpected command {}", c)
                 }
             }
-            if out == program { Some(ta) } else { None }
+            out == program
         })
-        .next().unwrap();
+        .unwrap();
     println!("{}", result);
 }

@@ -9,7 +9,7 @@ const HEIGHT: u32 = 103;
 const SCALE: u32 = 5;
 const WIN_WIDTH: u32 = SCALE * WIDTH;
 const WIN_HEIGHT: u32 = SCALE * HEIGHT;
-const FONT: &'static str = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
+const FONT: &str = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf";
 const MAX_DELAY: u64 = 1000;
 const STEP_DELAY: u64 = 10;
 
@@ -60,7 +60,7 @@ fn main() {
         }
         canvas.set_draw_color(Color::GREEN);
         for &((x, y), _) in &robots {
-            canvas.fill_rect(Rect::new(x * SCALE as i32, y * SCALE as i32, SCALE as u32, SCALE as u32)).unwrap();
+            canvas.fill_rect(Rect::new(x * SCALE as i32, y * SCALE as i32, SCALE, SCALE)).unwrap();
         }
         let surface = font
             .render(&format!("Step: {}", step))

@@ -236,10 +236,10 @@
       .flat_map(|c| {
           (0..1024)
               .map(move |i| c + (i << 3 * (n - 1)))
-              .filter_map(|ta| {
+              .filter(|&ta| {
                   let ra = ta;
                   <<day17:Виконати-програму>>
-                  if n <= out.len() && out[0..n] == program[0..n] { Some(ta) } else { None }
+                  n <= out.len() && out[0..n] == program[0..n]
               })
       })
       .collect();
@@ -250,12 +250,12 @@
 
 #+begin_src rust :noweb yes :noweb-ref day17_2:Дії
   let result = cnds.into_iter()
-      .filter_map(|ta| {
+      .find(|&ta| {
           let ra = ta;
           <<day17:Виконати-програму>>
-          if out == program { Some(ta) } else { None }
+          out == program
       })
-      .next().unwrap();
+      .unwrap();
 #+end_src
 
 ** COMMENT [Застаріло] Відлагодження

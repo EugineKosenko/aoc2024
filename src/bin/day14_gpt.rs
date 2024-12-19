@@ -139,11 +139,11 @@ fn main() -> Result<(), String> {
         // Draw the grid (optional)
         canvas.set_draw_color(Color::GRAY);
         for i in 0..=max_x {
-            let pos_x = i as i32 * scale_x;
+            let pos_x = i * scale_x;
             canvas.draw_line((pos_x, 0), (pos_x, window_height as i32))?;
         }
         for i in 0..=max_y {
-            let pos_y = i as i32 * scale_y;
+            let pos_y = i * scale_y;
             canvas.draw_line((0, pos_y), (window_width as i32, pos_y))?;
         }
 
@@ -197,7 +197,7 @@ fn main() -> Result<(), String> {
 
 // Function to make one step in the simulation
 fn make_one_step(
-    coordinates: &mut Vec<(i32, i32)>,
+    coordinates: &mut [(i32, i32)],
     velocities: &[(i32, i32)],
     max_x: i32,
     max_y: i32,
