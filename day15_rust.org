@@ -35,7 +35,7 @@
 
 #+begin_src rust :noweb-ref day15_1:Дії
   let mut board = grid::Grid::new(0, 0);
-  while let Some(line) = lines.next() {
+  for line in lines.by_ref() {
       if line.is_empty() { break; }
       board.push_row(line.chars().collect());
   }
@@ -56,7 +56,7 @@
 Далі перебираємо команди і обробляємо їх.
 
 #+begin_src rust :noweb yes :noweb-ref day15_1:Дії
-  while let Some(line) = lines.next() {
+  for line in lines.by_ref() {
       for command in line.chars() {
           <<day15_1:Обробити-команду>>
       }

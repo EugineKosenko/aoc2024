@@ -31,7 +31,7 @@ fn main() {
         .lines()
         .map(|line| line.unwrap());
     let mut board = grid::Grid::new(0, 0);
-    while let Some(line) = lines.next() {
+    for line in lines.by_ref() {
         if line.is_empty() { break; }
         board.push_row(line.chars().collect());
     }
@@ -42,7 +42,7 @@ fn main() {
             break;
         }
     }
-    while let Some(line) = lines.next() {
+    for line in lines.by_ref() {
         for command in line.chars() {
             let delta = match command {
                 '^' => (-1, 0),
