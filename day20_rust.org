@@ -93,21 +93,15 @@
   }
 #+end_src
 
-* Чесне рішення
+* Пошук шляху
 
 Згідно до умов задачі є тільки один правильний шлях. Щоб знайти його, достатньо почати с початкової
-точки, і потім кожний раз знаходити сусідню вільну точку, яка не належить шляху. Для ефективності
-зберігаємо шлях у вигляді множини, оскільки реальна послідовність для нас не має значення.
-
-#+begin_src rust :noweb-ref day20:Декларації
-  use std::collections::BTreeSet;
-#+end_src
+точки, і потім кожний раз знаходити сусідню вільну точку, яка не належить шляху.
 
 #+begin_src rust :noweb-ref day20:Дії
-  let mut path = BTreeSet::new();
+  let mut path = vec![start];
   let mut point = start;
   while point != finish {
-      path.insert(point);
       point = STEPS.iter()
           .find_map(|&step| {
               next(point, step, &board)
@@ -119,44 +113,132 @@
                       }
                   })
           }).unwrap();
+      path.push(point);
   }
-  let fair_total = path.len();
-  //println!("{:?} {}", path, fair_total);
 #+end_src
 
 * Пошук пробоїв
 
-Перебираємо усі точки чесного рішення, і для кожної точки шукаємо пробої.
+Перебираємо усі точки шляху, і для кожної точки шукаємо пробої. Водночас визначаємо порядковий номер
+точки шляху, що обробляється, це знадобиться при обробці пробою.
+
+#+begin_src rust :noweb-ref day20:Декларації
+  use std::collections::BTreeMap;
+#+end_src
 
 #+begin_src rust :noweb yes :noweb-ref day20:Дії
-  let mut brdowns = BTreeSet::new();
-  for start in path {
-      <<day20:Знайти-пробої-для-точки-шляху>>
+  let mut map = BTreeMap::<usize, usize>::new();
+  for (n, start) in path.iter().enumerate() {
+      if *start != finish {
+          <<day20:Знайти-пробої>>
+          <<day20:Обробити-пробої>>
+      }
   }
-  //println!("{}", brdowns.len());
+  println!("{:?}", map);
 #+end_src
+
+Пробої різняться не тільки кінцевими точками, але й довжиною, тому тут не підходить хвильовий алгоритм,
+який завжди знаходить найкоротший шлях. Замість цього використовуємо прямий рекурсивний перебір можливих
+шляхів заданої довжини.
+
+Створимо множину пробоїв.
+
+#+begin_src rust :noweb-ref day20:Знайти-пробої
+  let mut brdowns = BTreeSet::new();
+#+end_src
+
+Перебираємо усіх сусідів початкової точки, які є стінками, за виключенням кордонів дошки. Для кожної
+такої точки викликаємо рекурсивний пошук пробоїв зі збиранням результатів у множину.
+
+#+begin_src rust :noweb-ref day20:Декларації
+  use std::collections::BTreeSet;
+#+end_src
+
+#+begin_src rust :noweb-ref day20:Знайти-пробої
+  for step in STEPS {
+      if let Some(next) = next(*start, step, &board) {
+          if next.0 > 0 && next.0 < board.rows() - 1
+              && next.1 > 0 && next.1 < board.cols() - 1
+              && *board.get(next.0, next.1).unwrap() == '#' {
+                  find_brdowns(&board, limit, next, &BTreeSet::new(), &mut brdowns);
+              }
+      }
+  }
+  //println!("{:?} {:?}", start, brdowns);
+#+end_src
+
+При пошуку використовуємо межу, яка задається як другий аргумент програми. По суті, в першій частині
+~limit=1~, а в другій --- ~limit=20~, тому обидві частини можна рішити одним і тим же кодом.
+
+#+begin_src rust :noweb-ref day20:Прочитати-дані
+  let limit = args[2].parse::<usize>().unwrap();
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref day20:Визначення
+  fn find_brdowns(board: &Board, limit: usize,
+                  point: Point, path: &BTreeSet<Point>,
+                  brdowns: &mut BTreeSet<(Point, usize)>) {
+      <<day20:find-brdowns:Дії>>
+  }
+#+end_src
+
+Якщо довжина шляху дорівнює межі, припиняємо пошук.
+
+#+begin_src rust :noweb yes :noweb-ref day20:find-brdowns:Дії
+  if path.len() == limit { return; }
+#+end_src
+
+Створимо новий шлях, додавши точку до існуючого шляху. 
+
+#+begin_src rust :noweb yes :noweb-ref day20:find-brdowns:Дії
+  let mut path = path.clone();
+  path.insert(point);
+#+end_src
+
+Перебираємо усіх сусідів точки, які не є кордонами дошки. Якщо це вільна точка,
+додаємо її як пробій, інакше шукаємо пробої рекурсивно, якщо точка не належить шляху.
+
+#+begin_src rust :noweb yes :noweb-ref day20:find-brdowns:Дії
+  for step in STEPS {
+      if let Some(next) = next(point, step, &board) {
+          if next.0 > 0 && next.0 < board.rows() - 1
+              && next.1 > 0 && next.1 < board.cols() - 1 {
+                  if *board.get(next.0, next.1).unwrap() == '#' {
+                      if !path.contains(&next) {
+                          find_brdowns(board, limit, next, &path, brdowns);
+                      }
+                  } else {
+                      brdowns.insert((next, path.len() + 1));
+                  }
+              }
+      }
+  }
+#+end_src
+
+** COMMENT [Застаріло] Хвильовий алгоритм
 
 При пошуку пробою ми вирішуємо "зворотню" задачу, коли вважаємо доступними тільки стінки, а будь-яка
 вільна точка розглядається як "перешкода". Однак при цьому у нас нема кінцевої точки, але у нас є межа,
 після якої неможливо виконувати пошук пробоїв. При цьому пробоєм вважаємо будь-яку проміжну точку, у якої
-є хоча б один (або два для початкової точки) вільних сусіда.
-
-Важливо, що усі стіни є безперервними блоками, тому відстань між будь-якими двома точками всередини стіни
-не залежить від шляхів.
+є хоча б один вільний сусід.
 
 Створимо матрицю відстаней.
 
-#+begin_src rust :noweb-ref day20:Знайти-пробої-для-точки-шляху
+#+begin_src rust :noweb-ref day20:Знайти-пробої
   let mut dists = grid::Grid::init(board.rows(), board.cols(), 0);
 #+end_src
 
 Створимо чергу і додамо туди усіх сусідів початкової точки, які є стінками, за виключенням кордонів
 дошки. Черга впорядкована за відстанями.
 
-#+begin_src rust :noweb-ref day20:Знайти-пробої-для-точки-шляху
+#+begin_src rust :noweb-ref day20:Декларації
+  use std::collections::BTreeSet;
+#+end_src
+
+#+begin_src rust :noweb-ref day20:Знайти-пробої
   let mut queue = STEPS.iter()
       .filter_map(|&step| {
-          next(start, step, &board)
+          next(*start, step, &board)
               .and_then(|next| {
                   if next.0 > 0 && next.0 < board.rows() - 1
                       && next.1 > 0 && next.1 < board.cols() - 1
@@ -172,7 +254,7 @@
 
 Перебираємо точки в черзі, поки вона не стане пустою.
 
-#+begin_src rust :noweb yes :noweb-ref day20:Знайти-пробої-для-точки-шляху
+#+begin_src rust :noweb yes :noweb-ref day20:Знайти-пробої
   while let Some((dist, point)) = queue.pop_first() {
       <<day20:Обробити-точку-пробою>>
   }
@@ -201,11 +283,12 @@
       || next.1 == 0 || next.1 == board.cols() - 1 { continue; }
 #+end_src
 
-Якщо сусідом є вільна точка яка не є початковою, додаємо новий пробій, інакше додаємо до черги нову точку
-пробою, якщо відстань менше межи, яка задається як другий аргумент програми. По суті, в першій частині
-~limit=1~, а в другій --- ~limit=20~, тому обидві частини можна рішити одним і тим же кодом.
+Якщо сусідом є вільна точка яка не є початковою, обробляємо знайдений пробій, інакше додаємо до черги
+нову точку пробою, якщо відстань менше межи, яка задається як другий аргумент програми. По суті, в першій
+частині ~limit=1~, а в другій --- ~limit=20~, тому обидві частини можна рішити одним і тим же кодом.
 
-Важливо, що ми додаємо кінцеву точку, тільки якщо відповідна відстань ще не встановлена.
+Важливо, що ми додаємо кінцеву точку, тільки якщо відповідна відстань ще не встановлена. Це попереджає
+знаходження більш довгих пробоїв.
 
 #+begin_src rust :noweb-ref day20:Прочитати-дані
   let limit = args[2].parse::<usize>().unwrap();
@@ -214,15 +297,25 @@
 #+begin_src rust :noweb yes :noweb-ref day20:Обробити-сусіда-точки-пробою
   if *board.get(next.0, next.1).unwrap() == '#' {
       if dist < limit && *dists.get(next.0, next.1).unwrap() == 0 { queue.insert((dist + 1, next)); }
-  } else if next != start {
-      if *dists.get_mut(next.0, next.1).unwrap() == 0 {
-          ,*dists.get_mut(next.0, next.1).unwrap() = dist + 1;
-          brdowns.insert((start, next, dist + 1));
-      }
+  } else if next != *start && *dists.get_mut(next.0, next.1).unwrap() == 0 {
+      let dist = dist + 1;
+      ,*dists.get_mut(next.0, next.1).unwrap() = dist;
+      <<day20:Обробити-пробій>>
   }
 #+end_src
 
-* Пошук нечесних рішень
+* Обробка пробоїв
+
+Обробляємо всі знайдені пробої в циклі.
+
+#+begin_src rust :noweb yes :noweb-ref day20:Обробити-пробої
+  for (finish, dist) in brdowns {
+      <<day20:Обробити-пробій>>
+  }
+#+end_src
+
+Точка пробою на шляху має знаходитись після початкової. Отримана позиція показує актуальну довжину шляху,
+що скорочується. Для ефективності ця довжина має бути не менше довжини пробою з вказаною ефективністю.
 
 Визначимо також додатково критерій ефективної різниці (=delta=), яка визначає мінімально необхідну
 різницю між чесним та нечесним рішенням. Для відлагодження ~delta=1~ (в першій частині), ~delta=50~ (в
@@ -233,169 +326,13 @@
   let delta = args[3].parse::<usize>().unwrap();
 #+end_src
 
-Перебираємо усі пробої, і для кожного з них знаходимо рішення. Загальне рішення зі звичайним хвильовим
-алгоритмом неефективне, а головне --- повертає дивні результати. Замість цього скористаємося тим, що
-попередній лабіринт має лише один шлях, тому після пробою можливі лише два можливих напрямки руху.
-
-#+begin_src rust :noweb-ref day20:Декларації
-  use std::collections::BTreeMap;
-#+end_src
-
-#+begin_src rust :noweb yes :noweb-ref day20:Дії
-  //println!("{:?}", brdowns);
-  let mut map = BTreeMap::<usize, usize>::new();
-  for (from, to, jump) in brdowns {
-      let cheat_total = usize::MAX;
-      <<day20:Знайти-нечесне-рішення>>
-      if cheat_total <= fair_total - delta {
-          ,*map.entry(fair_total - cheat_total).or_default() += 1;
+#+begin_src rust :noweb-ref day20:Обробити-пробій
+  if let Some(m) = path.iter().skip(n + 1).position(|&point| point == finish) {
+      let m = m + 1;
+      if dist + delta <= m {
+          //println!("{:?}", (start, finish, dist));
+          ,*map.entry(m - dist).or_default() += 1;
           result += 1;
       }
-      if cheat_total == 10 {
-          //println!("{:?} {}", (from, to, jump), cheat_total);
-      }
-  }
-  //println!("{:?}", map);
-#+end_src
-
-Знайдемо частину шляху до точки пробою.
-
-#+begin_src rust :noweb-ref day20:Знайти-нечесне-рішення
-  let mut point = start;
-  let mut path = BTreeSet::from([point]);
-  while point != from {
-      point = STEPS.iter()
-          .find_map(|&step| {
-              next(point, step, &board)
-                  .and_then(|next| {
-                      if *board.get(next.0, next.1).unwrap() != '#' && !path.contains(&next) {
-                          Some(next)
-                      } else {
-                          None
-                      }
-                  })
-          }).unwrap();
-      path.insert(point);
-  }
-  if from == (1, 7) {
-      println!("{:?} {}", path, cheat_total);
-  }
-#+end_src
-
-Додамо до шляху точку вихода з пробою.
-
-#+begin_src rust :noweb-ref day20:Знайти-нечесне-рішення
-  path.insert(to);
-#+end_src
-
-Знайдемо усіх вільних сусідів точки виходу з пробою. Кожна така точка задасть подальший напрямок
-перебору, кожен з яких буде мати свій шлях і свою поточну точку. Зберемо такі шляхи до вектора.
-
-#+begin_src rust :noweb-ref day20:Знайти-нечесне-рішення
-  let mut paths = STEPS.iter()
-      .filter_map(|&step| {
-          next(to, step, &board)
-              .and_then(|next| {
-                  if *board.get(next.0, next.1).unwrap() != '#' && !path.contains(&next) {
-                      Some((next, path.clone()))
-                  } else {
-                      None
-                  }
-              })
-      })
-      .collect::<Vec<_>>();
-  if from == (1, 7) {
-      println!("{:?} {}", paths, paths.len());
-  }
-#+end_src
-
-Якщо перелік шляхів не пустий, виконуємо нескінчений цикл, вихід з якого відбувається, як тільки в одному
-з шляхів не буде знайдено кінцеву точку.
-
-#+begin_src rust :noweb-ref day20:Знайти-нечесне-рішення
-  while !paths.iter().any(|&(point, _)| point == finish) {
-      paths = paths.iter_mut()
-          .filter_map(|(point, ref mut path)| {
-              STEPS.iter()
-                  .find_map(|&step| {
-                      next(*point, step, &board)
-                          .and_then(|next| {
-                              if *board.get(next.0, next.1).unwrap() != '#' && !path.contains(&next) {
-                                  Some(next)
-                              } else {
-                                  None
-                              }
-                          })
-                  })
-                  .map(|next| {
-                      path.insert(*point);
-                      (next, path.to_owned())
-                  })
-          })
-          .collect();
-  }
-  println!("{:?}", paths);
-#+end_src
-
-** COMMENT Відлагодження
-
-Створимо матрицю відстаней.
-
-#+begin_src rust :noweb-ref day20:Знайти-нечесне-рішення
-  let mut dists = grid::Grid::init(board.rows(), board.cols(), 0);
-#+end_src
-
-Створимо чергу і додамо туди початкову точку. Черга впорядкована за відстанями.
-
-#+begin_src rust :noweb-ref day20:Знайти-нечесне-рішення
-  let mut queue = BTreeSet::from([(1, start)]);
-#+end_src
-
-Перебираємо точки в черзі, поки вона не стане пустою.
-
-#+begin_src rust :noweb yes :noweb-ref day20:Знайти-нечесне-рішення
-  let mut cheat_total = 0;
-  while let Some((dist, point)) = queue.pop_first() {
-      <<day20:Обробити-точку>>
-  }
-#+end_src
-
-Якщо це кінцева точка, то результат знайдено. При цьому враховуємо, що усі дистанції на ~1~ більше
-реальних.
-
-#+begin_src rust :noweb-ref day20:Обробити-точку
-  if point == finish { cheat_total = dist - 1; break; }
-#+end_src
-
-Якщо відстань дорівнює довжині чесного рішення, нема сенсу перебирати далі, встановимо довжину нечесного
-рішення як нескінчену, щоб відкинути її пізніше
-
-#+begin_src rust :noweb-ref day20:Обробити-точку
-  if dist == fair_total - delta { cheat_total = usize::MAX; continue; }
-#+end_src
-
-Встановлюємо відстань.
-
-#+begin_src rust :noweb-ref day20:Обробити-точку
-  ,*dists.get_mut(point.0, point.1).unwrap() = dist;
-#+end_src
-
-Додамо до черги точку пробою.
-
-#+begin_src rust :noweb yes :noweb-ref day20:Обробити-точку
-  if point == from && *dists.get(to.0, to.1).unwrap() == 0 {
-      queue.insert((dist + jump, to));
-  }
-#+end_src
-
-Перебираємо усіх вільних сусідів і додаємо їх до черги.
-
-#+begin_src rust :noweb yes :noweb-ref day20:Обробити-точку
-  for step in STEPS {
-      if let Some(next) = next(point, step, &board) {
-          if *board.get(next.0, next.1).unwrap() == '#' { continue; }
-          if *dists.get(next.0, next.1).unwrap() != 0 { continue; }
-          queue.insert((dist + 1, next));
-      }
-  }
+  };
 #+end_src
