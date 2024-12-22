@@ -28,7 +28,7 @@ fn find_brdowns(board: &Board, limit: usize,
     let mut path = path.clone();
     path.insert(point);
     for step in STEPS {
-        if let Some(next) = next(point, step, &board) {
+        if let Some(next) = next(point, step, board) {
             if next.0 > 0 && next.0 < board.rows() - 1
                 && next.1 > 0 && next.1 < board.cols() - 1 {
                     if *board.get(next.0, next.1).unwrap() == '#' {

@@ -200,7 +200,7 @@
 
 #+begin_src rust :noweb yes :noweb-ref day20:find-brdowns:Дії
   for step in STEPS {
-      if let Some(next) = next(point, step, &board) {
+      if let Some(next) = next(point, step, board) {
           if next.0 > 0 && next.0 < board.rows() - 1
               && next.1 > 0 && next.1 < board.cols() - 1 {
                   if *board.get(next.0, next.1).unwrap() == '#' {
@@ -238,7 +238,7 @@
 #+begin_src rust :noweb-ref day20:Знайти-пробої
   let mut queue = STEPS.iter()
       .filter_map(|&step| {
-          next(*start, step, &board)
+          next(*start, step, board)
               .and_then(|next| {
                   if next.0 > 0 && next.0 < board.rows() - 1
                       && next.1 > 0 && next.1 < board.cols() - 1
@@ -270,7 +270,7 @@
 
 #+begin_src rust :noweb yes :noweb-ref day20:Обробити-точку-пробою
   for step in STEPS {
-      if let Some(next) = next(point, step, &board) {
+      if let Some(next) = next(point, step, board) {
           <<day20:Обробити-сусіда-точки-пробою>>
       }
   }

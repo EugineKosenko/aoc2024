@@ -25,10 +25,7 @@ fn main() {
             deltas.push(value % 10 - prev);
         }
         for i in 0..deltas.len() - 4 {
-            let snippet = [deltas[i+0], deltas[i+1], deltas[i+2], deltas[i+3]];
-            if tsnippets.get(&snippet).is_none() {
-                tsnippets.insert(snippet, values[i+3]);
-            }
+            tsnippets.entry([deltas[i], deltas[i+1], deltas[i+2], deltas[i+3]]).or_insert(values[i+3]);
         }
         for (snippet, value) in tsnippets {
             *snippets.entry(snippet).or_default() += value;

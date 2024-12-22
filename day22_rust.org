@@ -122,10 +122,7 @@
 
 #+begin_src rust :noweb yes :noweb-ref day22_2:Обробити-трейдера
   for i in 0..deltas.len() - 4 {
-      let snippet = [deltas[i+0], deltas[i+1], deltas[i+2], deltas[i+3]];
-      if tsnippets.get(&snippet).is_none() {
-          tsnippets.insert(snippet, values[i+3]);
-      }
+      tsnippets.entry([deltas[i], deltas[i+1], deltas[i+2], deltas[i+3]]).or_insert(values[i+3]);
   }
 #+end_src
 
