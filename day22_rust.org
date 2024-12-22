@@ -1,0 +1,139 @@
+#+title: Adventure of Code, 2024, день 22, =Rust=
+
+* Частина 1
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day22_1.rs
+  <<day22:Декларації>>
+  <<day22_1:Декларації>>
+
+  <<day22:Визначення>>
+  <<day22_1:Визначення>>
+
+  fn main() {
+      <<day22:Прочитати-дані>>
+      let mut result = 0;
+      <<day22_1:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day22:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day22:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap());
+#+end_src
+
+Усі рядки можна обробляти незалежно.
+
+#+begin_src rust :noweb yes :noweb-ref day22_1:Дії
+  for line in lines {
+      let mut value = line.parse::<usize>().unwrap();
+      for _ in 0..2000 {
+          value = (64 * value ^ value) % 16777216;
+          value = (value / 32 ^ value) % 16777216;
+          value = (2048 * value ^ value) % 16777216;
+      }
+      result += value;
+  }
+#+end_src
+
+* Частина 2
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day22_2.rs
+  <<day22:Декларації>>
+  <<day22_2:Декларації>>
+
+  <<day22:Визначення>>
+  <<day22_2:Визначення>>
+
+  fn main() {
+      <<day22:Прочитати-дані>>
+      <<day22_2:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+* Збір фрагментів
+
+Згенеруємо мапу з всіх /фрагментів/ (=snippet=) на їх вартість.
+
+#+begin_src rust :noweb-ref day22_2:Декларації
+  use std::collections::BTreeMap;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref day22_2:Дії
+  let mut snippets = BTreeMap::<_, isize>::new();
+#+end_src
+
+Перебираємо усіх трейдерів, і для кожного трейдера сформуємо свою (локальну) мапу фрагментів. Це
+необхідно, щоб врахувати лише першу зустріч фрагменту в загальній послідовності.
+
+#+begin_src rust :noweb yes :noweb-ref day22_2:Дії
+  for line in lines {
+      let mut tsnippets = BTreeMap::new();
+      <<day22_2:Обробити-трейдера>>
+  }
+  //println!("{:?}", snippets.len());
+#+end_src
+
+Знайдемо максимальне значення фрагментів.
+
+#+begin_src rust :noweb yes :noweb-ref day22_2:Дії
+  let result = *snippets.values().max().unwrap();
+  for (snippet, value) in snippets {
+      if value == result { println!("{:?}", snippet); }
+  //     if snippet == [-2, 1, -1, 3] { println!("{}", value); }
+  }
+#+end_src
+
+* Обробка трейдера
+
+Визначимо початкове значення послідовності.
+
+#+begin_src rust :noweb yes :noweb-ref day22_2:Обробити-трейдера
+  let mut value = line.parse::<isize>().unwrap();
+#+end_src
+
+Обчислимо послідовності значень і різниць.
+
+#+begin_src rust :noweb yes :noweb-ref day22_2:Обробити-трейдера
+  let mut values = vec![];
+  let mut deltas = vec![];
+  for _ in 0..2000 {
+      let prev = value % 10;
+      value = (64 * value ^ value) % 16777216;
+      value = (value / 32 ^ value) % 16777216;
+      value = (2048 * value ^ value) % 16777216;
+      values.push(value % 10);
+      deltas.push(value % 10 - prev);
+  }
+#+end_src
+
+Формуємо мапу фрагментів в значення. Саме тут пропускаємо значення, якщо воно вже є в мапі, тобто,
+враховуються лише перші значення в послідовності, що підходять.
+
+#+begin_src rust :noweb yes :noweb-ref day22_2:Обробити-трейдера
+  for i in 0..deltas.len() - 4 {
+      let snippet = [deltas[i+0], deltas[i+1], deltas[i+2], deltas[i+3]];
+      if tsnippets.get(&snippet).is_none() {
+          tsnippets.insert(snippet, values[i+3]);
+      }
+  }
+#+end_src
+
+Додаємо отримані значення в загальну мапу фрагментів. Тут ми просто додаємо конкретні значення поточного
+трейдера до вже накопичених сум значень.
+
+#+begin_src rust :noweb yes :noweb-ref day22_2:Обробити-трейдера
+  for (snippet, value) in tsnippets {
+      ,*snippets.entry(snippet).or_default() += value;
+  }
+#+end_src
