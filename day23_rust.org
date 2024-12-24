@@ -1,0 +1,85 @@
+#+title: Adventure of Code, 2024, день 23, =Rust=
+
+* Частина 1
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day23_1.rs
+  <<day23:Декларації>>
+  <<day23_1:Декларації>>
+
+  <<day23:Визначення>>
+  <<day23_1:Визначення>>
+
+  fn main() {
+      <<day23:Прочитати-дані>>
+      <<day23_1:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day23:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day23:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap());
+#+end_src
+
+Прочитаємо усі зв'язки. При цьому ми створюємо мапу-довідник /сусідів/ (=nghbr=) кожного комп'ютера, а
+також перелік усіх /зв'язків/ (=link=), причому, оскільки зв'язки симетричні, додаємо два зв'язки, а для
+кожного комп'ютера з пари вказуємо інший комп'ютер як сусіда.
+
+#+begin_src rust :noweb-ref day23_1:Декларації
+  use std::collections::{BTreeSet, BTreeMap};
+#+end_src
+
+#+begin_src rust :noweb-ref day23_1:Дії
+  let mut nghbrs = BTreeMap::<String, Vec<String>>::new();
+  let mut links = BTreeSet::new();
+  for line in lines {
+      let (c1, c2) = line.split_once('-').unwrap();
+      links.insert((c1.to_string(), c2.to_string()));
+      links.insert((c2.to_string(), c1.to_string()));
+      nghbrs.entry(c1.to_string()).or_default().push(c2.to_string());
+      nghbrs.entry(c2.to_string()).or_default().push(c1.to_string());
+  }
+  //println!("{:?}", links);
+  //println!("{:?}", nghbrs);
+#+end_src
+
+Переберемо усі комп'ютери, для кожного будуємо перше замикання, яке не містить початкової точки, а потім
+для кожного комп'ютера з замикання будуємо друге замикання, також без нової початкової точки. В
+побудованому замиканні відберемо тільки ті комп'ютери, у яких є (циклічний) зв'язок з першим комп'ютером,
+і виводимо усі трійки з комп'ютерів.
+
+Додатково на коєному кроці відбираємо тільки ті трійки, де назва комп'ютера починається з ~t~.
+
+Треба також врахувати, що порядок комп'ютерів в трійці не має значення, тому представляємо трійки як
+множини.
+
+#+begin_src rust :noweb-ref day23_1:Дії
+  let triads = nghbrs.iter()
+      .flat_map(|(first, seconds)| {
+          seconds.iter()
+              .filter(|second| first.clone() != **second)
+              .flat_map(|second| {
+                  nghbrs.get(second).unwrap().iter()
+                      .filter_map(|third| {
+                          if second.clone() != *third
+                              && links.contains(&(third.clone(), first.clone()))
+                              && (first.starts_with('t') || second.starts_with('t') || third.starts_with('t')) {
+                                  Some(BTreeSet::from([first.clone(), second.clone(), third.clone()]))
+                              } else {
+                                  None
+                              }
+                      })
+              })
+      })
+      .collect::<BTreeSet<_>>();
+  let result = triads.len();
+#+end_src

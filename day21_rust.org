@@ -1,0 +1,236 @@
+#+title: Adventure of Code, 2024, день 21, =Rust=
+
+* Частина 1
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day21_1.rs
+  <<day21:Декларації>>
+  <<day21_1:Декларації>>
+
+  <<day21:Визначення>>
+  <<day21_1:Визначення>>
+
+  fn main() {
+      <<day21:Прочитати-дані>>
+      let mut result = 0;
+      <<day21_1:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day21:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day21:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap());
+#+end_src
+
+* Точки
+
+#+begin_src rust :noweb yes :noweb-ref day21:Визначення
+  type Point = (isize, isize);
+#+end_src
+
+** Кодування
+
+Ці функції перетворюють символи на панелі в точки з координатами у просторі. Функція ~num~ визначає
+панель номерів, а функція ~cmd~ --- панель команд роботів.
+
+#+begin_src rust :noweb-ref day21:Визначення
+  fn num(c: char) -> Point {
+      match c {
+          'A' => (3, 2),
+          '0' => (3, 1),
+          '1' => (2, 0),
+          '2' => (2, 1),
+          '3' => (2, 2),
+          '4' => (1, 0),
+          '5' => (1, 1),
+          '6' => (1, 2),
+          '7' => (0, 0),
+          '8' => (0, 1),
+          '9' => (0, 2),
+          c => panic!("Unexpected num {}", c)
+      }
+  }
+
+  fn cmd(c: char) -> Point {
+      match c {
+          'A' => (0, 2),
+          '^' => (0, 1),
+          '<' => (1, 0),
+          'v' => (1, 1),
+          '>' => (1, 2),
+          c => panic!("Unexpected num {}", c)
+      }
+  }
+#+end_src
+
+** Пропуски
+
+Маємо два /пропуски/ (=gap=), окремо для панелі номерів і для панелі команд, в яких відсутні
+кнопки. Захід роботів в ці точки заборонено.
+
+#+begin_src rust :noweb-ref day21:Визначення
+  const NUM_GAP: Point = (3, 0);
+  const CMD_GAP: Point = (0, 0);
+#+end_src
+
+* Фрагменти
+
+/Фрагмент/ (=snippet=) представляє собою рядок з постлідовністю команд-літер.
+
+#+begin_src rust :noweb-ref day21:Визначення
+  type Snippet = String;
+#+end_src
+
+* Обробка кодів
+
+Обробимо кожний код незалежно. Для простоти перепакуємо коди у вектори точок.
+
+#+begin_src rust :noweb yes :noweb-ref day21:Декларації
+  use std::collections::BTreeMap;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref day21_1:Дії
+  let mut moves_memo = BTreeMap::new();
+  for line in lines {
+      let points = line.chars().map(num).collect::<Vec<_>>();
+      <<day21_1:Обробити-код>>
+  }
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref day21_1:Обробити-код
+  let mut snippets = expanded(num('A'), points, NUM_GAP, &mut moves_memo);
+#+end_src
+
+* Обробка програм
+
+Після обробки кодів ми отримуємо множину фрагментів. Переберемо фрагменти, перетворимо їх у послідовності
+точок, після чого знайдемо нову множину фрагментів, як об'єднання множинин для кожного фрагмента.
+
+#+begin_src rust :noweb yes :noweb-ref day21_1:Обробити-код
+  for i in 0..3 {
+      snippets = snippets.iter()
+          .map(|snippet| snippet.chars().map(cmd).collect())
+          .map(|points| expanded(cmd('A'), points, CMD_GAP, &mut moves_memo))
+          .flatten()
+          .collect();
+      println!("{} {}", i, snippets.len());
+  }
+#+end_src
+
+Обчислимо результат.
+
+#+begin_src rust :noweb yes :noweb-ref day21_1:Обробити-код
+  let len = snippets.iter().map(|snippet| snippet.len()).min().unwrap();
+  let mult = line[0..line.len()-1].parse::<usize>().unwrap();
+  println!("{} {}", mult, len);
+  result += mult * len;
+#+end_src
+
+* Обробка послідовності точок
+
+Функція ~snippets~ узагальнює пошуковий алгоритм фрагментів, скриваючи різницю між панеллю номерів і
+панеллю команд.
+
+Будемо збирати фрагменти в множині (для простоти у вигляді вектора), яка спочатку містить тільки один
+пустий фрагмент, але буде збільшуватись після кожної ітерації пошуку розширення фрагментів.
+
+#+begin_src rust :noweb yes :noweb-ref day21:Визначення
+  fn expanded(start: Point, points: Vec<Point>, gap: Point, moves_memo: &mut BTreeMap<(Point, Point, Point), Vec<Snippet>>) -> Vec<Snippet> {
+      let mut result = vec![String::new()];
+      <<day21:snippets:Дії>>
+      result
+  }
+#+end_src
+
+Перебираємо послідовність точок, і для кожної пари будуєму множину фрагментів (у вигляді вектора), які
+переміщають робота з попередньої точки в наступну.
+
+Для простоти встановимо /попередню/ (=prev=) точку, яка спочатку є точкою символа ~A~, де знаходиться
+робот перед обробкою кожного коду.
+
+#+begin_src rust :noweb yes :noweb-ref day21:snippets:Дії
+  let mut prev = start;
+  for point in points {
+      let moves = moves(prev, point, gap, moves_memo);
+      result = result.iter()
+          .flat_map(|snippet| {
+              moves.iter().map(|move_| snippet.chars().chain(move_.chars()).collect::<String>())
+          })
+          .collect::<Vec<Snippet>>();
+      prev = point;
+  }
+#+end_src
+
+* Пошук переміщень
+
+Пошук переміщень виконується рекурсивно за допомогою функції ~move~.
+
+#+begin_src rust :noweb yes :noweb-ref day21_1:Визначення
+  fn moves(from: Point, to: Point, gap: Point, moves_memo: &mut BTreeMap<(Point, Point, Point), Vec<Snippet>>) -> Vec<Snippet> {
+      if let Some(result) = moves_memo.get(&(from, to, gap)) { return result.to_vec(); }
+      let mut result = vec![];
+      <<day21_1:moves:Дії>>
+      moves_memo.insert((from, to, gap), result.clone());
+      result
+  }
+#+end_src
+
+Якщо точки співпадають, то результатом є множина тільки із одого фрагмента з однією командою натискання
+(~A~).
+
+#+begin_src rust :noweb yes :noweb-ref day21_1:moves:Дії
+  if from == to { return vec!["A".to_string()]; }
+#+end_src
+
+Визначимо різницю між точками.
+
+#+begin_src rust :noweb yes :noweb-ref day21_1:moves:Дії
+  let (dr, dc) = (to.0 - from.0, to.1 - from.1);
+#+end_src
+
+Перевіримо крок по вертикалі (по рядках, ~dr~).
+
+#+begin_src rust :noweb-ref day21_1:moves:Дії
+  use std::cmp::Ordering;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref day21_1:moves:Дії
+  if let Some((d, cmd)) = match dr.cmp(&0) {
+      Ordering::Greater => Some((1, 'v')),
+      Ordering::Less => Some((-1, '^')),
+      Ordering::Equal => None
+  } {
+      if (from.0 + d, from.1) != gap {
+          for move_ in moves((from.0 + d, from.1), to, gap, moves_memo).iter_mut() {
+              move_.insert(0, cmd);
+              result.push(move_.to_string());
+          }
+      }
+  }
+#+end_src
+
+Перевіримо крок по горизонталі (по стовпцях, ~dc~).
+
+#+begin_src rust :noweb yes :noweb-ref day21_1:moves:Дії
+  if let Some((d, cmd)) = match dc.cmp(&0) {
+      Ordering::Greater => Some((1, '>')),
+      Ordering::Less => Some((-1, '<')),
+      Ordering::Equal => None
+  } {
+      if (from.0, from.1 + d) != gap {
+          for move_ in moves((from.0, from.1 + d), to, gap, moves_memo).iter_mut() {
+              move_.insert(0, cmd);
+              result.push(move_.to_string());
+          }
+      }
+  }
+#+end_src
