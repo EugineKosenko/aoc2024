@@ -1,0 +1,144 @@
+#+title: Adventure of Code, 2024, день 23, =Rust=
+
+* Частина 1
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day24_1.rs
+  <<day24:Декларації>>
+  <<day24_1:Декларації>>
+
+  <<day24:Визначення>>
+  <<day24_1:Визначення>>
+
+  fn main() {
+      <<day24:Прочитати-дані>>
+      <<day24_1:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day24:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day24:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let mut lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap());
+#+end_src
+
+Прочитаємо входні /зв'язки/ (=wire=), які при цьому розміщуються в мапі значень.
+
+#+begin_src rust :noweb-ref day24:Декларації
+  use std::collections::BTreeMap;
+#+end_src
+
+#+begin_src rust :noweb-ref day24:Прочитати-дані
+  let mut wires = BTreeMap::new();
+  lazy_static::lazy_static! {
+      static ref RE_WIRE: regex::Regex = regex::Regex::new(r"^(?P<name>\w+): (?P<value>[01])$").unwrap();
+  }
+  for line in lines.by_ref() {
+      if line.is_empty() { break; }
+      let cps = RE_WIRE.captures(&line).unwrap();
+      let name = cps.name("name").unwrap().as_str().to_string();
+      let value = cps.name("value").unwrap().as_str().parse::<usize>().unwrap();
+      wires.insert(name, Some(value));
+  }
+#+end_src
+
+Прочитаємо [[id:9c6a1147-ec6f-41d7-a410-dabb7a165c69][вентілі]].
+
+#+begin_src rust :noweb-ref day24:Прочитати-дані
+  let mut gates = Vec::new();
+  lazy_static::lazy_static! {
+      static ref RE_GATE: regex::Regex = regex::Regex::new(r"^(?P<input1>\w+) (?P<func>AND|OR|XOR) (?P<input2>\w+) -> (?P<output>\w+)$").unwrap();
+  }
+  for line in lines {
+      let cps = RE_GATE.captures(&line).unwrap();
+      let func = match cps.name("func").unwrap().as_str() {
+          "AND" => Func::AND,
+          "OR" => Func::OR,
+          "XOR" => Func::XOR,
+          f => panic!("Unexpected func {}", f)
+      };
+      let input1 = cps.name("input1").unwrap().as_str().to_string();
+      wires.entry(input1.clone()).or_default();
+      let input2 = cps.name("input2").unwrap().as_str().to_string();
+      wires.entry(input2.clone()).or_default();
+      let output = cps.name("output").unwrap().as_str().to_string();
+      wires.entry(output.clone()).or_default();
+      gates.push(Gate { input1, input2, output, func });
+  }
+#+end_src
+
+* Вентилі
+:PROPERTIES:
+:ID:       9c6a1147-ec6f-41d7-a410-dabb7a165c69
+:END:
+
+При цьому у кожного вентіля (=gate=) є два /входи/ (=input=), /вихід/ (=output=) і /функція/ (=func=).
+
+#+begin_src rust :noweb yes :noweb-ref day24:Декларації
+  #[derive(Debug)]
+  enum Func { AND, OR, XOR }
+
+  #[derive(Debug)]
+  struct Gate {
+      input1: String,
+      input2: String,
+      output: String,
+      func: Func
+  }
+
+  impl Gate {
+      <<day24:Gate:Визначення>>
+  }
+#+end_src
+
+** Обрахунок вентиля
+
+Вентиль перевіряє свої входи, і якщо обидва входи визначені, встановлюється вихід.
+
+#+begin_src rust :noweb-ref day24:Gate:Визначення
+  fn process(&self, wires: &mut BTreeMap<String, Option<usize>>) {
+      if let Some(input1) = *wires.get(&self.input1).unwrap() {
+          if let Some(input2) = *wires.get(&self.input2).unwrap() {
+              ,*wires.get_mut(&self.output).unwrap() = Some(match self.func {
+                  Func::AND => input1 & input2,
+                  Func::OR => input1 | input2,
+                  Func::XOR => input1 ^ input2
+              });
+          }
+      }
+  }
+#+end_src
+
+* Обрахунок
+
+Обробляємо схему, поки усі /виходи/ (=output=), які позначаються буквою ~z~ на початку, не будуть
+визначені.
+
+#+begin_src rust :noweb-ref day24_1:Дії
+  while wires.iter()
+      .filter(|(name, _)| name.starts_with('z'))
+      .any(|(_, value)| value.is_none()) {
+          for gate in gates.iter() {
+              gate.process(&mut wires);
+          }
+      }
+#+end_src
+
+Отримаємо результат.
+
+#+begin_src rust :noweb-ref day24_1:Дії
+  let result = wires.iter()
+      .filter(|(name, _)| name.starts_with('z'))
+      .rev()
+      .map(|(_, value)| value.unwrap())
+      .reduce(|a, v| 2 * a + v).unwrap();
+#+end_src
+
