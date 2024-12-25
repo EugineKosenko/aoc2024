@@ -1,0 +1,67 @@
+#+title: Adventure of Code, 2024, день 25, =Rust=
+
+* Частина 1
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day25_1.rs
+  <<day25:Декларації>>
+  <<day25_1:Декларації>>
+
+  <<day25:Визначення>>
+  <<day25_1:Визначення>>
+
+  fn main() {
+      <<day25:Прочитати-дані>>
+      <<day25_1:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Прочитаємо рядки із файла.
+
+#+begin_src rust :noweb-ref day25:Декларації
+  use std::{fs, env, io::{self, BufRead}};
+#+end_src
+
+#+begin_src rust :noweb-ref day25:Прочитати-дані
+  let args: Vec<String> = env::args().collect();
+  let file = fs::File::open(&args[1]).unwrap();
+  let mut lines = io::BufReader::new(file)
+      .lines()
+      .map(|line| line.unwrap())
+      .peekable();
+#+end_src
+
+Прочитаємо ключі і замки.
+
+#+begin_src rust :noweb-ref day25:Прочитати-дані
+  let mut locks = Vec::new();
+  let mut keys = Vec::new();
+  while let Some(line) = lines.next() {
+      if line.is_empty() { lines.next().unwrap(); }
+      let mut item = [0, 0, 0, 0, 0];
+      for _ in 0..5 {
+          let line = lines.next().unwrap();
+          for (i, ch) in line.chars().enumerate() {
+              if ch == '#' { item[i] += 1 }
+          }
+      }
+      if lines.next().unwrap() == "....." { locks.push(item); } else { keys.push(item); }
+  }
+#+end_src
+
+Перебираємо усі комбінації замків і ключів, знаходимо відповідності і підраховуємо їх. Для цього для
+кожного замка перебираємо ключи, підраховуючи відповідні, а потім складаємо кількість відповідних ключів
+для всіх замків.
+
+#+begin_src rust :noweb-ref day25_1:Дії
+  let result = locks.iter()
+      .map(|lock| {
+          keys.iter()
+              .filter(|key| {
+                  lock.iter().zip(key.iter())
+                      .all(|(lock, key)| lock + key < 6)
+              })
+              .count()
+      })
+      .sum::<usize>();
+#+end_src
