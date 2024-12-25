@@ -2,6 +2,7 @@ use std::{fs, env, io::{self, BufRead}};
 use std::collections::{BTreeSet, BTreeMap};
 
 
+type Set = BTreeSet<String>;
 
 
 fn main() {
@@ -10,14 +11,14 @@ fn main() {
     let lines = io::BufReader::new(file)
         .lines()
         .map(|line| line.unwrap());
-    let mut nghbrs = BTreeMap::<String, Vec<String>>::new();
+    let mut nghbrs = BTreeMap::<String, Set>::new();
     let mut links = BTreeSet::new();
     for line in lines {
         let (c1, c2) = line.split_once('-').unwrap();
         links.insert((c1.to_string(), c2.to_string()));
         links.insert((c2.to_string(), c1.to_string()));
-        nghbrs.entry(c1.to_string()).or_default().push(c2.to_string());
-        nghbrs.entry(c2.to_string()).or_default().push(c1.to_string());
+        nghbrs.entry(c1.to_string()).or_default().insert(c2.to_string());
+        nghbrs.entry(c2.to_string()).or_default().insert(c1.to_string());
     }
     //println!("{:?}", links);
     //println!("{:?}", nghbrs);

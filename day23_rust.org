@@ -34,19 +34,19 @@
 також перелік усіх /зв'язків/ (=link=), причому, оскільки зв'язки симетричні, додаємо два зв'язки, а для
 кожного комп'ютера з пари вказуємо інший комп'ютер як сусіда.
 
-#+begin_src rust :noweb-ref day23_1:Декларації
+#+begin_src rust :noweb-ref day23:Декларації
   use std::collections::{BTreeSet, BTreeMap};
 #+end_src
 
-#+begin_src rust :noweb-ref day23_1:Дії
-  let mut nghbrs = BTreeMap::<String, Vec<String>>::new();
+#+begin_src rust :noweb-ref day23:Прочитати-дані
+  let mut nghbrs = BTreeMap::<String, Set>::new();
   let mut links = BTreeSet::new();
   for line in lines {
       let (c1, c2) = line.split_once('-').unwrap();
       links.insert((c1.to_string(), c2.to_string()));
       links.insert((c2.to_string(), c1.to_string()));
-      nghbrs.entry(c1.to_string()).or_default().push(c2.to_string());
-      nghbrs.entry(c2.to_string()).or_default().push(c1.to_string());
+      nghbrs.entry(c1.to_string()).or_default().insert(c2.to_string());
+      nghbrs.entry(c2.to_string()).or_default().insert(c1.to_string());
   }
   //println!("{:?}", links);
   //println!("{:?}", nghbrs);
@@ -82,4 +82,75 @@
       })
       .collect::<BTreeSet<_>>();
   let result = triads.len();
+#+end_src
+
+* Набори
+
+/Набір/ (=set=) є просто множиною (~BTreeSet~) комп'ютерів.
+
+#+begin_src rust :noweb-ref day23:Визначення
+  type Set = BTreeSet<String>;
+#+end_src
+
+* Частина 2
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day23_2.rs
+  <<day23:Декларації>>
+  <<day23_2:Декларації>>
+
+  <<day23:Визначення>>
+  <<day23_2:Визначення>>
+
+  fn main() {
+      <<day23:Прочитати-дані>>
+      <<day23_2:Дії>>
+      println!("{}", result);
+  }
+#+end_src
+
+Виконуватимо пошук рекурсивно, розширюючи /набір/ (=set=) на одиницю на кожному кроці. Коли набір
+неможливо розширювати, фіксуємо його розмір, і потім знаходимо набір найбільшого розміру.
+
+На першому кроці рекурсії набір є пустим, а в перелік /кандидатів/ (=cnds=) входять усі комп'ютери.
+
+#+begin_src rust :noweb-ref day23_2:Дії
+  let result = itertools::intersperse(
+      largest(
+          &mut BTreeSet::new(),
+          &nghbrs.keys().map(|key| key.clone()).collect(),
+          &nghbrs),
+      ",".to_string())
+      .collect::<String>();
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref day23_2:Визначення
+  fn largest(set: &mut Set, cnds: &Set, nghbrs: &BTreeMap<String, Set>) -> Set {
+      <<day23_2:largest:Дії>>
+  }
+#+end_src
+
+Перебираємо усіх кандидатів, таких, що вони ще не є в наборі, але сам набір входить в множину їх
+сусідів. Отримаємо максимальний набір після додавання чергового кандидата в набір, при цьому усі сусіди
+кандидата стають новими кандидатами.
+
+Обираємо набір максимального розміру, але якщо після відбіру не вдалося знайти такий набір, то
+результатом вважається поточний набір.
+
+#+begin_src rust :noweb-ref day23_2:largest:Дії
+  cnds.iter()
+      .filter_map(|cnd| {
+          if !set.contains(cnd) && set.is_subset(nghbrs.get(cnd).unwrap()) {
+              set.insert(cnd.to_string());
+              let result = Some(largest(set, nghbrs.get(cnd).unwrap(), nghbrs));
+              set.remove(cnd);
+              result
+          } else {
+              None
+          }
+      })
+      .max_by_key(|cnd| cnd.len())
+      .unwrap_or_else(|| {
+          println!("{:?}", set);
+          set.clone()
+      })
 #+end_src
