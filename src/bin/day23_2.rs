@@ -20,32 +20,25 @@ fn main() {
         nghbrs.entry(c1.to_string()).or_default().insert(c2.to_string());
         nghbrs.entry(c2.to_string()).or_default().insert(c1.to_string());
     }
-    let nodes = nghbrs.keys().map(|key| key.clone()).collect::<BTreeSet<String>>();
-    let mut result = Cluster::new();
-    let mut queue = BTreeSet::from([(0, Cluster::new())]);
-    let mut i = 0;
-    while let Some((_, cluster)) = queue.pop_last() {
-        i += 1;
-        if i % 1 == 0 {
-            println!(
-                "{} {} {} {:?}", i, queue.len(),
-                queue.iter().map(|(len, _)| len).max().unwrap_or(&0),
-                cluster);
-        }
-        let mut is_extended = false;
-        for node in nodes.iter() {
-            if !cluster.contains(node) && cluster.is_subset(nghbrs.get(node).unwrap()) {
-                let mut cluster = cluster.clone();
-                cluster.insert(node.clone());
-                queue.insert((cluster.len(), cluster));
-                is_extended = true;
+    let nodes = nghbrs.keys().cloned().collect::<BTreeSet<String>>();
+    let mut visited = BTreeSet::new();
+    let result = nodes.into_iter()
+        .filter_map(|start| {
+            if visited.contains(&start) { None } else {
+                let mut cluster = Cluster::new();
+                let mut queue = BTreeSet::from([start]);
+                while let Some(node) = queue.pop_first() {
+                    if !visited.contains(&node) && cluster.is_subset(nghbrs.get(&node).unwrap()) {
+                        visited.insert(node.clone());
+                        cluster.insert(node.clone());
+                        queue = queue.union(&nghbrs.get(&node).unwrap().difference(&visited).cloned().collect()).cloned().collect();
+                    }
+                }
+                Some(cluster)
             }
-        }
-        if !is_extended && cluster.len() > result.len() {
-            result = cluster;
-            println!("{}", itertools::intersperse(result.iter().map(|node| node.clone()), ",".to_string()).collect::<String>());
-        }
-    }
-    let result = itertools::intersperse(result.into_iter(), ",".to_string()).collect::<String>();
+        })
+        .max_by_key(|cluster| cluster.len())
+        .unwrap();
+    let result = itertools::intersperse(result, ",".to_string()).collect::<String>();
     println!("{}", result);
 }
