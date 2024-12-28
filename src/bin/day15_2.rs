@@ -40,7 +40,7 @@ fn main() {
         .lines()
         .map(|line| line.unwrap());
     let mut board = grid::Grid::new(0, 0);
-    while let Some(line) = lines.next() {
+    for line in lines.by_ref() {
         if line.is_empty() { break; }
         board.push_row(
             line.chars()
@@ -60,7 +60,7 @@ fn main() {
             break;
         }
     }
-    while let Some(line) = lines.next() {
+    for line in lines {
         for command in line.chars() {
             match command {
                 '^' | 'v' => {

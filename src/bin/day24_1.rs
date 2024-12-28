@@ -1,7 +1,7 @@
 use std::{fs, env, io::{self, BufRead}};
 use std::collections::BTreeMap;
 #[derive(Debug)]
-enum Func { AND, OR, XOR }
+enum Func { And, Or, Xor }
 
 #[derive(Debug)]
 struct Gate {
@@ -16,9 +16,9 @@ impl Gate {
         if let Some(input1) = *wires.get(&self.input1).unwrap() {
             if let Some(input2) = *wires.get(&self.input2).unwrap() {
                 *wires.get_mut(&self.output).unwrap() = Some(match self.func {
-                    Func::AND => input1 & input2,
-                    Func::OR => input1 | input2,
-                    Func::XOR => input1 ^ input2
+                    Func::And => input1 & input2,
+                    Func::Or => input1 | input2,
+                    Func::Xor => input1 ^ input2
                 });
             }
         }
@@ -53,9 +53,9 @@ fn main() {
     for line in lines {
         let cps = RE_GATE.captures(&line).unwrap();
         let func = match cps.name("func").unwrap().as_str() {
-            "AND" => Func::AND,
-            "OR" => Func::OR,
-            "XOR" => Func::XOR,
+            "AND" => Func::And,
+            "OR" => Func::Or,
+            "XOR" => Func::Xor,
             f => panic!("Unexpected func {}", f)
         };
         let input1 = cps.name("input1").unwrap().as_str().to_string();

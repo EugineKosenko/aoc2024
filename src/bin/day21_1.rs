@@ -95,8 +95,7 @@ fn main() {
         for i in 0..3 {
             snippets = snippets.iter()
                 .map(|snippet| snippet.chars().map(cmd).collect())
-                .map(|points| expanded(cmd('A'), points, CMD_GAP, &mut moves_memo))
-                .flatten()
+                .flat_map(|points| expanded(cmd('A'), points, CMD_GAP, &mut moves_memo))
                 .collect();
             println!("{} {}", i, snippets.len());
         }

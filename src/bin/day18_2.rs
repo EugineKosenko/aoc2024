@@ -31,7 +31,6 @@ fn main() {
             .split_once(',').unwrap();
         let point = (point.0.parse::<usize>().unwrap(), point.1.parse::<usize>().unwrap());
         *board.get_mut(point.1, point.0).unwrap() = '#';
-        println!("{} {:?}", i, point);
         let mut dists = grid::Grid::init(rows, cols, 0);
         let mut queue = BTreeSet::from([(1, start)]);
         let mut is_found = false;

@@ -15,6 +15,7 @@
       <<day18:Прочитати-дані>>
       let mut result = 0;
       <<day18:Знайти-вихід>>
+      let _is_found = is_found;
       <<day18_1:Дії>>
       println!("{}", result);
   }
@@ -152,7 +153,6 @@
           .split_once(',').unwrap();
       let point = (point.0.parse::<usize>().unwrap(), point.1.parse::<usize>().unwrap());
       ,*board.get_mut(point.1, point.0).unwrap() = '#';
-      println!("{} {:?}", i, point);
       <<day18:Знайти-вихід>>
       if !is_found { result = i; break; }
   }

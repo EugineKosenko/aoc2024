@@ -38,13 +38,14 @@ fn main() {
         .split(',')
         .map(|command| command.parse::<usize>().unwrap())
         .collect::<Vec<_>>();
+    let _ra = ra;
     let mut cnds = BTreeSet::from([0]);
     for n in 1..program.len() {
-        cnds = cnds.iter().map(|cnd| cnd % (1 << 3 * n)).collect();
+        cnds = cnds.iter().map(|cnd| cnd % (1 << (3 * n))).collect();
         cnds = cnds.iter()
             .flat_map(|c| {
                 (0..1024)
-                    .map(move |i| c + (i << 3 * (n - 1)))
+                    .map(move |i| c + (i << (3 * (n - 1))))
                     .filter(|&ta| {
                         let ra = ta;
                         let (mut ra, mut rb, mut rc) = (ra, rb, rc);

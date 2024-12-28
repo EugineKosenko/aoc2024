@@ -47,6 +47,7 @@ fn main() {
             queue.insert((dist + 1, (row, col)));
         }
     }
+    let _is_found = is_found;
     
     println!("{}", result);
 }
