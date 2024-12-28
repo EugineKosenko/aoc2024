@@ -30,16 +30,16 @@
       .map(|line| line.unwrap());
 #+end_src
 
-Прочитаємо усі зв'язки. При цьому ми створюємо мапу-довідник /сусідів/ (=nghbr=) кожного комп'ютера, а
+Прочитаємо усі зв'язки. При цьому ми створюємо мапу-довідник /сусідів/ (=nghbr=) кожного вузла, а
 також перелік усіх /зв'язків/ (=link=), причому, оскільки зв'язки симетричні, додаємо два зв'язки, а для
-кожного комп'ютера з пари вказуємо інший комп'ютер як сусіда.
+кожного вузла з пари вказуємо інший вузол як сусіда.
 
 #+begin_src rust :noweb-ref day23:Декларації
   use std::collections::{BTreeSet, BTreeMap};
 #+end_src
 
 #+begin_src rust :noweb-ref day23:Прочитати-дані
-  let mut nghbrs = BTreeMap::<String, Set>::new();
+  let mut nghbrs = BTreeMap::<String, Cluster>::new();
   let mut links = BTreeSet::new();
   for line in lines {
       let (c1, c2) = line.split_once('-').unwrap();
@@ -48,19 +48,16 @@
       nghbrs.entry(c1.to_string()).or_default().insert(c2.to_string());
       nghbrs.entry(c2.to_string()).or_default().insert(c1.to_string());
   }
-  //println!("{:?}", links);
-  //println!("{:?}", nghbrs);
 #+end_src
 
-Переберемо усі комп'ютери, для кожного будуємо перше замикання, яке не містить початкової точки, а потім
-для кожного комп'ютера з замикання будуємо друге замикання, також без нової початкової точки. В
-побудованому замиканні відберемо тільки ті комп'ютери, у яких є (циклічний) зв'язок з першим комп'ютером,
-і виводимо усі трійки з комп'ютерів.
+Переберемо усі вузли, для кожного будуємо перше замикання, яке не містить початкової точки, а потім для
+кожного вузла з замикання будуємо друге замикання, також без нової початкової точки. В побудованому
+замиканні відберемо тільки ті вузли, у яких є (циклічний) зв'язок з першим вузлом, і виводимо усі трійки
+з вузлів.
 
-Додатково на коєному кроці відбираємо тільки ті трійки, де назва комп'ютера починається з ~t~.
+Додатково на коєному кроці відбираємо тільки ті трійки, де назва вузла починається з ~t~.
 
-Треба також врахувати, що порядок комп'ютерів в трійці не має значення, тому представляємо трійки як
-множини.
+Треба також врахувати, що порядок вузлів в трійці не має значення, тому представляємо трійки як множини.
 
 #+begin_src rust :noweb-ref day23_1:Дії
   let triads = nghbrs.iter()
@@ -86,10 +83,10 @@
 
 * Набори
 
-/Набір/ (=set=) є просто множиною (~BTreeSet~) комп'ютерів.
+/Кластер/ (=cluster=) є просто множиною (~BTreeSet~) вузлів.
 
 #+begin_src rust :noweb-ref day23:Визначення
-  type Set = BTreeSet<String>;
+  type Cluster = BTreeSet<String>;
 #+end_src
 
 * Частина 2
@@ -108,10 +105,67 @@
   }
 #+end_src
 
+Для зручності визначимо множину вузлів як окрему структуру.
+
+#+begin_src rust :noweb-ref day23_2:Дії
+  let nodes = nghbrs.keys().map(|key| key.clone()).collect::<BTreeSet<String>>();
+#+end_src
+
+Визначимо початковий результат як пустий кластер.
+
+#+begin_src rust :noweb-ref day23_2:Дії
+  let mut result = Cluster::new();
+#+end_src
+
+Визначимо чергу кластерів як їх множину (~BTreeSet~). Спочатку ця черга містить лише один пустий кластер.
+
+#+begin_src rust :noweb-ref day23_2:Дії
+  let mut queue = BTreeSet::from([(0, Cluster::new())]);
+#+end_src
+
+В циклі беремо черговий кластер і намахаємось його /розширити/ (=extend=), додаючи послідовно усі вузли,
+що не належать кластеру, але які тісно пов'язані з кластером (мають зв'язки з усіма вузлами кластера,
+тобто, множина сусідів вузла містить кластер як підмножину). Якщо кластер не можна розширити, вважаємо
+його черговим результатом. Тоді після завершення циклу, коли черга кластерів пуста, результат і є
+найбільшим кластером, який шукаємо.
+
+#+begin_src rust :noweb-ref day23_2:Дії
+  let mut i = 0;
+  while let Some((_, cluster)) = queue.pop_last() {
+      i += 1;
+      if i % 10000 == 0 {
+          println!(
+              "{} {} {}", i, queue.len(),
+              queue.iter().map(|(len, _)| len).max().unwrap());
+      }
+      let mut is_extended = false;
+      for node in nodes.iter() {
+          if !cluster.contains(node) && cluster.is_subset(nghbrs.get(node).unwrap()) {
+              let mut cluster = cluster.clone();
+              cluster.insert(node.clone());
+              queue.insert((cluster.len(), cluster));
+              is_extended = true;
+          }
+      }
+      if !is_extended && cluster.len() > result.len() {
+          result = cluster;
+          println!("{}", itertools::intersperse(result.iter().map(|node| node.clone()), ",".to_string()).collect::<String>());
+      }
+  }
+#+end_src
+
+Перетворимо результат для виводу.
+
+#+begin_src rust :noweb-ref day23_2:Дії
+  let result = itertools::intersperse(result.into_iter(), ",".to_string()).collect::<String>();
+#+end_src
+
+* COMMENT Рекурсивний пошук
+
 Виконуватимо пошук рекурсивно, розширюючи /набір/ (=set=) на одиницю на кожному кроці. Коли набір
 неможливо розширювати, фіксуємо його розмір, і потім знаходимо набір найбільшого розміру.
 
-На першому кроці рекурсії набір є пустим, а в перелік /кандидатів/ (=cnds=) входять усі комп'ютери.
+На першому кроці рекурсії набір є пустим, а в перелік /кандидатів/ (=cnds=) входять усі вузли.
 
 #+begin_src rust :noweb-ref day23_2:Дії
   let result = itertools::intersperse(
@@ -124,7 +178,7 @@
 #+end_src
 
 #+begin_src rust :noweb yes :noweb-ref day23_2:Визначення
-  fn largest(set: &mut Set, cnds: &Set, nghbrs: &BTreeMap<String, Set>) -> Set {
+  fn largest(set: &mut Cluster, cnds: &Cluster, nghbrs: &BTreeMap<String, Cluster>) -> Cluster {
       <<day23_2:largest:Дії>>
   }
 #+end_src
