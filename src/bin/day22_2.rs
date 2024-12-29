@@ -24,18 +24,16 @@ fn main() {
             values.push(value % 10);
             deltas.push(value % 10 - prev);
         }
-        for i in 0..deltas.len() - 4 {
+        for i in 0..deltas.len() - 3 {
             tsnippets.entry([deltas[i], deltas[i+1], deltas[i+2], deltas[i+3]]).or_insert(values[i+3]);
         }
         for (snippet, value) in tsnippets {
             *snippets.entry(snippet).or_default() += value;
         }
     }
-    //println!("{:?}", snippets.len());
     let result = *snippets.values().max().unwrap();
     for (snippet, value) in snippets {
         if value == result { println!("{:?}", snippet); }
-    //     if snippet == [-2, 1, -1, 3] { println!("{}", value); }
     }
     println!("{}", result);
 }

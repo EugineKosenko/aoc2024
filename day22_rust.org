@@ -81,7 +81,6 @@
       let mut tsnippets = BTreeMap::new();
       <<day22_2:Обробити-трейдера>>
   }
-  //println!("{:?}", snippets.len());
 #+end_src
 
 Знайдемо максимальне значення фрагментів.
@@ -90,7 +89,6 @@
   let result = *snippets.values().max().unwrap();
   for (snippet, value) in snippets {
       if value == result { println!("{:?}", snippet); }
-  //     if snippet == [-2, 1, -1, 3] { println!("{}", value); }
   }
 #+end_src
 
@@ -121,7 +119,7 @@
 враховуються лише перші значення в послідовності, що підходять.
 
 #+begin_src rust :noweb yes :noweb-ref day22_2:Обробити-трейдера
-  for i in 0..deltas.len() - 4 {
+  for i in 0..deltas.len() - 3 {
       tsnippets.entry([deltas[i], deltas[i+1], deltas[i+2], deltas[i+3]]).or_insert(values[i+3]);
   }
 #+end_src
