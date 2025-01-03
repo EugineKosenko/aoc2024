@@ -3,9 +3,12 @@
 Задача на хвильовий алгоритм для розв'ання лабіринтів, але цього разу один раз за все проходження можна
 пройти скрізь стінку.
 
-* Частина 1
+* Головний файл
 
-#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day20_1.rs
+В цьому завданні друга частина є лише параметризованою зміною першої частини, тому ми використовуємо
+тільки один файл.
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day20.rs
   <<day20:Декларації>>
 
   <<day20:Визначення>>
@@ -117,7 +120,43 @@
   }
 #+end_src
 
+* Межа та ефективна різниця
+
+При пошуку використовуємо межу, яка задається як другий аргумент програми. По суті, в першій частині
+~limit=1~, а в другій --- ~limit=20~, тому обидві частини можна рішити одним і тим же кодом.
+
+#+begin_src rust :noweb-ref day20:Прочитати-дані
+  let limit = args[2].parse::<usize>().unwrap();
+#+end_src
+
+Визначимо критерій ефективної різниці (=delta=), який визначає мінімально необхідну різницю між чесним та
+нечесним рішенням. Для відлагодження ~delta=1~ (в першій частині), ~delta=50~ (в другій чстині), а в
+кінцевому рішенні ~delta=100~. Для універсальності отримаємо це значення як третій аргумент програми.
+
+#+begin_src rust :noweb-ref day20:Прочитати-дані
+  let delta = args[3].parse::<usize>().unwrap();
+#+end_src
+
 * Пошук пробоїв
+
+Схоже, для очікуваного рішення використовується дивна еврістика, коли відстань між входом і виходом
+пробою визначається як пряма манхетенська, без урахування того, що весь пробій має поміщатися в стіні.
+
+При такому підході достатньо перебрати усі пари точок на шляху і перевірити, що манхетеньска відстань між
+ними не більше межі і, водночас, менше відстані по шляху на значення ефективної різниці. Для додаткової
+оптимізації можна обмежити пари точок, відстань між якими завідомо не менше ефективної різниці.
+
+#+begin_src rust :noweb-ref day20:Дії
+  for n in 0..(path.len() - delta) {
+      for m in (n + delta)..path.len() {
+          let dist = ((path[n].0 as isize - path[m].0 as isize).abs()
+                      + (path[n].1 as isize - path[m].1 as isize).abs()) as usize;
+          if dist <= limit && dist + delta <= (m - n) { result += 1; }
+      }
+  }
+#+end_src
+
+** COMMENT Підготовка для пошукових алгоритмів
 
 Перебираємо усі точки шляху, і для кожної точки шукаємо пробої. Водночас визначаємо порядковий номер
 точки шляху, що обробляється, це знадобиться при обробці пробою.
@@ -128,14 +167,97 @@
 
 #+begin_src rust :noweb yes :noweb-ref day20:Дії
   let mut map = BTreeMap::<usize, usize>::new();
-  for (n, start) in path.iter().enumerate() {
-      if *start != finish {
+  for (n, &from) in path.iter().enumerate() {
+      if from != finish {
           <<day20:Знайти-пробої>>
-          <<day20:Обробити-пробої>>
       }
   }
   println!("{:?}", map);
 #+end_src
+
+** COMMENT Хвильовий алгоритм
+
+При пошуку пробою ми вирішуємо "зворотню" задачу, коли вважаємо доступними тільки стінки, а будь-яка
+вільна точка розглядається як "перешкода". Однак при цьому у нас нема кінцевої точки, але у нас є межа,
+після якої неможливо виконувати пошук пробоїв. При цьому пробоєм вважаємо будь-яку проміжну точку, у якої
+є хоча б один вільний сусід.
+
+Створимо матрицю відстаней.
+
+#+begin_src rust :noweb-ref day20:Знайти-пробої
+  let mut dists = grid::Grid::init(board.rows(), board.cols(), 0);
+#+end_src
+
+Створимо чергу і додамо туди усіх сусідів початкової точки, які є стінками, за виключенням кордонів
+дошки. Черга впорядкована за відстанями.
+
+#+begin_src rust :noweb-ref day20:Декларації
+  use std::collections::BTreeSet;
+#+end_src
+
+#+begin_src rust :noweb-ref day20:Знайти-пробої
+  let mut queue = STEPS.iter()
+      .filter_map(|&step| {
+          next(from, step, &board)
+              .and_then(|next| {
+                  if next.0 > 0 && next.0 < board.rows() - 1
+                      && next.1 > 0 && next.1 < board.cols() - 1
+                      && *board.get(next.0, next.1).unwrap() == '#' {
+                      Some((1, next))
+                  } else {
+                      None
+                  }
+              })
+      })
+      .collect::<BTreeSet<_>>();
+#+end_src
+
+Перебираємо точки в черзі, поки вона не стане пустою.
+
+#+begin_src rust :noweb yes :noweb-ref day20:Знайти-пробої
+  while let Some((dist, point)) = queue.pop_first() {
+      <<day20:Обробити-точку-пробою>>
+  }
+#+end_src
+
+Встановлюємо відстань.
+
+#+begin_src rust :noweb-ref day20:Обробити-точку-пробою
+  ,*dists.get_mut(point.0, point.1).unwrap() = dist;
+#+end_src
+
+Перебираємо усіх сусідів точки.
+
+#+begin_src rust :noweb yes :noweb-ref day20:Обробити-точку-пробою
+  for step in STEPS {
+      if let Some(next) = next(point, step, &board) {
+          <<day20:Обробити-сусіда-точки-пробою>>
+      }
+  }
+#+end_src
+
+Відкидаємо точки на кордоні дошки.
+
+#+begin_src rust :noweb yes :noweb-ref day20:Обробити-сусіда-точки-пробою
+  if next.0 == 0 || next.0 == board.rows() - 1
+      || next.1 == 0 || next.1 == board.cols() - 1 { continue; }
+#+end_src
+
+Важливо, що ми додаємо кінцеву точку, тільки якщо відповідна відстань ще не встановлена. Це попереджає
+знаходження більш довгих пробоїв.
+
+#+begin_src rust :noweb yes :noweb-ref day20:Обробити-сусіда-точки-пробою
+  if *board.get(next.0, next.1).unwrap() == '#' {
+      if dist < limit && *dists.get(next.0, next.1).unwrap() == 0 { queue.insert((dist + 1, next)); }
+  } else if next != from && *dists.get(next.0, next.1).unwrap() == 0 {
+      let jump = dist + 1;
+      ,*dists.get_mut(next.0, next.1).unwrap() = jump;
+      let to = next;
+      <<day20:Обробити-пробій>>
+  }
+#+end_src
+
+** COMMENT Пошук з урахуванням довжини
 
 Пробої різняться не тільки кінцевими точками, але й довжиною, тому тут не підходить хвильовий алгоритм,
 який завжди знаходить найкоротший шлях. Замість цього використовуємо прямий рекурсивний перебір можливих
@@ -165,13 +287,6 @@
       }
   }
   //println!("{:?} {:?}", start, brdowns);
-#+end_src
-
-При пошуку використовуємо межу, яка задається як другий аргумент програми. По суті, в першій частині
-~limit=1~, а в другій --- ~limit=20~, тому обидві частини можна рішити одним і тим же кодом.
-
-#+begin_src rust :noweb-ref day20:Прочитати-дані
-  let limit = args[2].parse::<usize>().unwrap();
 #+end_src
 
 #+begin_src rust :noweb yes :noweb-ref day20:Визначення
@@ -215,123 +330,16 @@
   }
 #+end_src
 
-** COMMENT [Застаріло] Хвильовий алгоритм
-
-При пошуку пробою ми вирішуємо "зворотню" задачу, коли вважаємо доступними тільки стінки, а будь-яка
-вільна точка розглядається як "перешкода". Однак при цьому у нас нема кінцевої точки, але у нас є межа,
-після якої неможливо виконувати пошук пробоїв. При цьому пробоєм вважаємо будь-яку проміжну точку, у якої
-є хоча б один вільний сусід.
-
-Створимо матрицю відстаней.
-
-#+begin_src rust :noweb-ref day20:Знайти-пробої
-  let mut dists = grid::Grid::init(board.rows(), board.cols(), 0);
-#+end_src
-
-Створимо чергу і додамо туди усіх сусідів початкової точки, які є стінками, за виключенням кордонів
-дошки. Черга впорядкована за відстанями.
-
-#+begin_src rust :noweb-ref day20:Декларації
-  use std::collections::BTreeSet;
-#+end_src
-
-#+begin_src rust :noweb-ref day20:Знайти-пробої
-  let mut queue = STEPS.iter()
-      .filter_map(|&step| {
-          next(*start, step, board)
-              .and_then(|next| {
-                  if next.0 > 0 && next.0 < board.rows() - 1
-                      && next.1 > 0 && next.1 < board.cols() - 1
-                      && *board.get(next.0, next.1).unwrap() == '#' {
-                      Some((1, next))
-                  } else {
-                      None
-                  }
-              })
-      })
-      .collect::<BTreeSet<_>>();
-#+end_src
-
-Перебираємо точки в черзі, поки вона не стане пустою.
-
-#+begin_src rust :noweb yes :noweb-ref day20:Знайти-пробої
-  while let Some((dist, point)) = queue.pop_first() {
-      <<day20:Обробити-точку-пробою>>
-  }
-#+end_src
-
-Встановлюємо відстань.
-
-#+begin_src rust :noweb-ref day20:Обробити-точку-пробою
-  ,*dists.get_mut(point.0, point.1).unwrap() = dist;
-#+end_src
-
-Перебираємо усіх сусідів точки.
-
-#+begin_src rust :noweb yes :noweb-ref day20:Обробити-точку-пробою
-  for step in STEPS {
-      if let Some(next) = next(point, step, board) {
-          <<day20:Обробити-сусіда-точки-пробою>>
-      }
-  }
-#+end_src
-
-Відкидаємо точки на кордоні дошки.
-
-#+begin_src rust :noweb yes :noweb-ref day20:Обробити-сусіда-точки-пробою
-  if next.0 == 0 || next.0 == board.rows() - 1
-      || next.1 == 0 || next.1 == board.cols() - 1 { continue; }
-#+end_src
-
-Якщо сусідом є вільна точка яка не є початковою, обробляємо знайдений пробій, інакше додаємо до черги
-нову точку пробою, якщо відстань менше межи, яка задається як другий аргумент програми. По суті, в першій
-частині ~limit=1~, а в другій --- ~limit=20~, тому обидві частини можна рішити одним і тим же кодом.
-
-Важливо, що ми додаємо кінцеву точку, тільки якщо відповідна відстань ще не встановлена. Це попереджає
-знаходження більш довгих пробоїв.
-
-#+begin_src rust :noweb-ref day20:Прочитати-дані
-  let limit = args[2].parse::<usize>().unwrap();
-#+end_src
-
-#+begin_src rust :noweb yes :noweb-ref day20:Обробити-сусіда-точки-пробою
-  if *board.get(next.0, next.1).unwrap() == '#' {
-      if dist < limit && *dists.get(next.0, next.1).unwrap() == 0 { queue.insert((dist + 1, next)); }
-  } else if next != *start && *dists.get_mut(next.0, next.1).unwrap() == 0 {
-      let dist = dist + 1;
-      ,*dists.get_mut(next.0, next.1).unwrap() = dist;
-      <<day20:Обробити-пробій>>
-  }
-#+end_src
-
-* Обробка пробоїв
-
-Обробляємо всі знайдені пробої в циклі.
-
-#+begin_src rust :noweb yes :noweb-ref day20:Обробити-пробої
-  for (finish, dist) in brdowns {
-      <<day20:Обробити-пробій>>
-  }
-#+end_src
+* COMMENT Обробка пробоїв
 
 Точка пробою на шляху має знаходитись після початкової. Отримана позиція показує актуальну довжину шляху,
 що скорочується. Для ефективності ця довжина має бути не менше довжини пробою з вказаною ефективністю.
 
-Визначимо також додатково критерій ефективної різниці (=delta=), яка визначає мінімально необхідну
-різницю між чесним та нечесним рішенням. Для відлагодження ~delta=1~ (в першій частині), ~delta=50~ (в
-другій чстині), а в кінцевому рішенні ~delta=100~. Для універсальності отримаємо це значення як третій
-аргумент програми.
-
-#+begin_src rust :noweb-ref day20:Прочитати-дані
-  let delta = args[3].parse::<usize>().unwrap();
-#+end_src
-
 #+begin_src rust :noweb-ref day20:Обробити-пробій
-  if let Some(m) = path.iter().skip(n + 1).position(|&point| point == finish) {
-      let m = m + 1;
-      if dist + delta <= m {
-          //println!("{:?}", (start, finish, dist));
-          ,*map.entry(m - dist).or_default() += 1;
+  if let Some(m) = path.iter().skip(n + 1).position(|&point| point == to) {
+      if jump + delta <= m + 1 {
+          //println!("{:?} {}", (from, to, jump), m + 1);
+          ,*map.entry(m + 1 - jump).or_default() += 1;
           result += 1;
       }
   };
