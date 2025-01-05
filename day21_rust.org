@@ -1,18 +1,18 @@
 #+title: Adventure of Code, 2024, день 21, =Rust=
 
-* Частина 1
+Обидві частини вирішуються за допомогою єдиного параметризованого коду.
 
-#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day21_1.rs
+* Головний файл
+
+#+begin_src rust :noweb yes :mkdirp yes :tangle src/bin/day21.rs
   <<day21:Декларації>>
-  <<day21_1:Декларації>>
 
   <<day21:Визначення>>
-  <<day21_1:Визначення>>
 
   fn main() {
       <<day21:Прочитати-дані>>
       let mut result = 0;
-      <<day21_1:Дії>>
+      <<day21:Дії>>
       println!("{}", result);
   }
 #+end_src
@@ -43,7 +43,7 @@
 панель номерів, а функція ~cmd~ --- панель команд роботів.
 
 #+begin_src rust :noweb-ref day21:Визначення
-  fn num(c: char) -> Point {
+  fn from_num(c: char) -> Point {
       match c {
           'A' => (3, 2),
           '0' => (3, 1),
@@ -60,7 +60,7 @@
       }
   }
 
-  fn cmd(c: char) -> Point {
+  fn from_cmd(c: char) -> Point {
       match c {
           'A' => (0, 2),
           '^' => (0, 1),
@@ -68,6 +68,41 @@
           'v' => (1, 1),
           '>' => (1, 2),
           c => panic!("Unexpected num {}", c)
+      }
+  }
+#+end_src
+
+** COMMENT Декодування
+
+Зворотні функції використовуються тільки для відлагодження, оскільки для ефективності усі фрагменти
+представляються як послідовності точок.
+
+#+begin_src rust :noweb-ref day21:Визначення
+  fn to_num(p: Point) -> char {
+      match p {
+          (3, 2) => 'A',
+          (3, 1) => '0',
+          (2, 0) => '1',
+          (2, 1) => '2',
+          (2, 2) => '3',
+          (1, 0) => '4',
+          (1, 1) => '5',
+          (1, 2) => '6',
+          (0, 0) => '7',
+          (0, 1) => '8',
+          (0, 2) => '9',
+          p => panic!("Unexpected point {:?}", p)
+      }
+  }
+
+  fn to_cmd(p: Point) -> char {
+      match p {
+          (0, 2) => 'A',
+          (0, 1) => '^',
+          (1, 0) => '<',
+          (1, 1) => 'v',
+          (1, 2) => '>',
+          p => panic!("Unexpected point {:?}", p)
       }
   }
 #+end_src
@@ -84,100 +119,47 @@
 
 * Фрагменти
 
-/Фрагмент/ (=snippet=) представляє собою рядок з постлідовністю команд-літер.
+/Фрагмент/ (=snippet=) представляє собою послідовність точок на панелях. Особливим типом фрагмента є
+/програма/ --- фрагмент, який виконується людиною, в результаті якого вводиться весь код.
 
 #+begin_src rust :noweb-ref day21:Визначення
-  type Snippet = String;
+  type Snippet = Vec<Point>;
 #+end_src
 
-* Обробка кодів
+** COMMENT Декодування
 
-Обробимо кожний код незалежно. Для простоти перепакуємо коди у вектори точок.
+Для відлагодження реалізуємо функції ~snippet_to_num~ і ~snippet_to_cmd~.
 
-#+begin_src rust :noweb yes :noweb-ref day21:Декларації
-  use std::collections::BTreeMap;
-#+end_src
+#+begin_src rust :noweb-ref day21:Визначення
+  fn show_num(snippet: Snippet) -> String {
+      snippet.into_iter().map(to_num).collect()
+  }
 
-#+begin_src rust :noweb yes :noweb-ref day21_1:Дії
-  let mut moves_memo = BTreeMap::new();
-  for line in lines {
-      let points = line.chars().map(num).collect::<Vec<_>>();
-      <<day21_1:Обробити-код>>
+  fn show_cmd(snippet: Snippet) -> String {
+      snippet.into_iter().map(to_cmd).collect()
   }
 #+end_src
 
-#+begin_src rust :noweb yes :noweb-ref day21_1:Обробити-код
-  let mut snippets = expanded(num('A'), points, NUM_GAP, &mut moves_memo);
+* Переміщення
+
+Назвемо /переміщенням/ (=move=) будь-який шлях між парою точок, по якому має переміщатися маніпулятор. В
+загальному випадку для двох довільних точок переміщення може виконуватись різними шляхами, при цьому
+кожному шляху відповідає свій фрагмент. Шлях переміщення не може проходити через пропуск.
+
+Пошук переміщень виконується рекурсивно за допомогою функції ~move~. Однак, для ефективності
+використовуємо техніку =мемоізації=, тобто, зберігаємо множину (для простоти вона представлена вектором)
+усіх фрагментів у мапі ~moves_memo~. Якщо для заданої комбінації початкової та кінцевої точок, а також
+пропуску, множина переміщень вже обчислена, просто повертаємо її.
+
+#+begin_src rust :noweb-ref day21:Визначення
+  type MovesMemo = BTreeMap<(Point, Point, Point), Vec<Snippet>>;
 #+end_src
-
-* Обробка програм
-
-Після обробки кодів ми отримуємо множину фрагментів. Переберемо фрагменти, перетворимо їх у послідовності
-точок, після чого знайдемо нову множину фрагментів, як об'єднання множинин для кожного фрагмента.
-
-#+begin_src rust :noweb yes :noweb-ref day21_1:Обробити-код
-  for i in 0..3 {
-      snippets = snippets.iter()
-          .map(|snippet| snippet.chars().map(cmd).collect())
-          .flat_map(|points| expanded(cmd('A'), points, CMD_GAP, &mut moves_memo))
-          .collect();
-      println!("{} {}", i, snippets.len());
-  }
-#+end_src
-
-Обчислимо результат.
-
-#+begin_src rust :noweb yes :noweb-ref day21_1:Обробити-код
-  let len = snippets.iter().map(|snippet| snippet.len()).min().unwrap();
-  let mult = line[0..line.len()-1].parse::<usize>().unwrap();
-  println!("{} {}", mult, len);
-  result += mult * len;
-#+end_src
-
-* Обробка послідовності точок
-
-Функція ~snippets~ узагальнює пошуковий алгоритм фрагментів, скриваючи різницю між панеллю номерів і
-панеллю команд.
-
-Будемо збирати фрагменти в множині (для простоти у вигляді вектора), яка спочатку містить тільки один
-пустий фрагмент, але буде збільшуватись після кожної ітерації пошуку розширення фрагментів.
 
 #+begin_src rust :noweb yes :noweb-ref day21:Визначення
-  fn expanded(start: Point, points: Vec<Point>, gap: Point, moves_memo: &mut BTreeMap<(Point, Point, Point), Vec<Snippet>>) -> Vec<Snippet> {
-      let mut result = vec![String::new()];
-      <<day21:snippets:Дії>>
-      result
-  }
-#+end_src
-
-Перебираємо послідовність точок, і для кожної пари будуєму множину фрагментів (у вигляді вектора), які
-переміщають робота з попередньої точки в наступну.
-
-Для простоти встановимо /попередню/ (=prev=) точку, яка спочатку є точкою символа ~A~, де знаходиться
-робот перед обробкою кожного коду.
-
-#+begin_src rust :noweb yes :noweb-ref day21:snippets:Дії
-  let mut prev = start;
-  for point in points {
-      let moves = moves(prev, point, gap, moves_memo);
-      result = result.iter()
-          .flat_map(|snippet| {
-              moves.iter().map(|move_| snippet.chars().chain(move_.chars()).collect::<String>())
-          })
-          .collect::<Vec<Snippet>>();
-      prev = point;
-  }
-#+end_src
-
-* Пошук переміщень
-
-Пошук переміщень виконується рекурсивно за допомогою функції ~move~.
-
-#+begin_src rust :noweb yes :noweb-ref day21_1:Визначення
-  fn moves(from: Point, to: Point, gap: Point, moves_memo: &mut BTreeMap<(Point, Point, Point), Vec<Snippet>>) -> Vec<Snippet> {
+  fn moves(from: Point, to: Point, gap: Point, moves_memo: &mut MovesMemo) -> Vec<Snippet> {
       if let Some(result) = moves_memo.get(&(from, to, gap)) { return result.to_vec(); }
       let mut result = vec![];
-      <<day21_1:moves:Дії>>
+      <<day21:moves:Дії>>
       moves_memo.insert((from, to, gap), result.clone());
       result
   }
@@ -186,50 +168,196 @@
 Якщо точки співпадають, то результатом є множина тільки із одого фрагмента з однією командою натискання
 (~A~).
 
-#+begin_src rust :noweb yes :noweb-ref day21_1:moves:Дії
-  if from == to { return vec!["A".to_string()]; }
+#+begin_src rust :noweb yes :noweb-ref day21:moves:Дії
+  if from == to { return vec![vec![from_cmd('A')]]; }
 #+end_src
 
 Визначимо різницю між точками.
 
-#+begin_src rust :noweb yes :noweb-ref day21_1:moves:Дії
+#+begin_src rust :noweb yes :noweb-ref day21:moves:Дії
   let (dr, dc) = (to.0 - from.0, to.1 - from.1);
 #+end_src
 
 Перевіримо крок по вертикалі (по рядках, ~dr~).
 
-#+begin_src rust :noweb-ref day21_1:moves:Дії
-  use std::cmp::Ordering;
+#+begin_src rust :noweb-ref day21:Декларації
+  use std::{cmp::Ordering, iter};
 #+end_src
 
-#+begin_src rust :noweb yes :noweb-ref day21_1:moves:Дії
-  if let Some((d, cmd)) = match dr.cmp(&0) {
-      Ordering::Greater => Some((1, 'v')),
-      Ordering::Less => Some((-1, '^')),
+#+begin_src rust :noweb yes :noweb-ref day21:moves:Дії
+  if let Some((d, point)) = match dr.cmp(&0) {
+      Ordering::Greater => Some((1, from_cmd('v'))),
+      Ordering::Less => Some((-1, from_cmd('^'))),
       Ordering::Equal => None
   } {
       if (from.0 + d, from.1) != gap {
-          for move_ in moves((from.0 + d, from.1), to, gap, moves_memo).iter_mut() {
-              move_.insert(0, cmd);
-              result.push(move_.to_string());
-          }
+          result.extend(
+              moves((from.0 + d, from.1), to, gap, moves_memo)
+                  .into_iter()
+                  .map(|move_| iter::once(point).chain(move_.into_iter()).collect()));
       }
   }
 #+end_src
 
 Перевіримо крок по горизонталі (по стовпцях, ~dc~).
 
-#+begin_src rust :noweb yes :noweb-ref day21_1:moves:Дії
-  if let Some((d, cmd)) = match dc.cmp(&0) {
-      Ordering::Greater => Some((1, '>')),
-      Ordering::Less => Some((-1, '<')),
+#+begin_src rust :noweb yes :noweb-ref day21:moves:Дії
+  if let Some((d, point)) = match dc.cmp(&0) {
+      Ordering::Greater => Some((1, from_cmd('>'))),
+      Ordering::Less => Some((-1, from_cmd('<'))),
       Ordering::Equal => None
   } {
       if (from.0, from.1 + d) != gap {
-          for move_ in moves((from.0, from.1 + d), to, gap, moves_memo).iter_mut() {
-              move_.insert(0, cmd);
-              result.push(move_.to_string());
-          }
+          result.extend(
+              moves((from.0, from.1 + d), to, gap, moves_memo)
+                  .into_iter()
+                  .map(|move_| iter::once(point).chain(move_.into_iter()).collect()));
       }
   }
+#+end_src
+
+Мапа переміщень є глобальною.
+
+#+begin_src rust :noweb yes :noweb-ref day21:Декларації
+  use std::collections::BTreeMap;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref day21:Дії
+  let mut moves_memo: MovesMemo = BTreeMap::new();
+#+end_src
+
+* Ранг
+
+Назвемо /рангом/ (=rank=) кількість проміжних панелей. Коли ранг дорівнює ~0~, це значить, що усі кнопки
+натискає безпосередньо людина. В такому разі розмір програми співпадає з розміром фрагмента. Коли кнопки
+на панелі номерів натискає робот, а людина керує ним через свою панель, то це задача рангу ~1~.
+
+#+begin_src rust :noweb-ref day21:Визначення
+  type Rank = usize;
+#+end_src
+
+За умовами задачі в першій частині ранг дорівнює ~3~, а в другій --- ~26~. Отримаємо ранг з другого
+аргумента програми.
+
+#+begin_src rust :noweb-ref day21:Прочитати-дані
+  let rank = args[2].parse::<Rank>().unwrap();
+#+end_src
+
+* COMMENT Пошук оптимальної програми для фрагмента
+
+Нехай ми маємо фрагмент ~snippet~, для якого ми маємо знайти оптимальне рішення ранга ~rank~. Оскільки
+фрагмент завданий абстрактно, нам потрібно також знати конкретне значення пропуску ~gap~.
+
+Пошук виконується рекурсивно за допомогою функції ~find_program~.
+
+#+begin_src rust :noweb yes :noweb-ref day21:Визначення
+  fn find_program(snippet: Snippet, gap: Point, rank: Rank, moves_memo: &mut MovesMemo) -> Snippet {
+      <<day21:find-program:Дії>>
+  }
+#+end_src
+
+Для нульового ранга результат співпадає з самим фрагментом, але без початкової точки (~A~).
+
+#+begin_src rust :noweb yes :noweb-ref day21:find-program:Дії
+  if rank == 0 { return snippet[1..].to_vec(); }
+#+end_src
+
+Перебираємо всі пари послідовних точок фрагмента, для кожної пари отримуємо оптимальну (найкоротшу)
+програму, і нам залишається лише об'єднати ці програми в один фінальний фрагмент-програму.
+
+#+begin_src rust :noweb yes :noweb-ref day21:find-program:Дії
+  (0..snippet.len() - 1)
+      .flat_map(|i| {
+          <<day21:find-program:Знайти-оптимальну-програму>>
+      })
+      .collect()
+#+end_src
+
+Для пошуку оптимальної програми визначаємо перелік переміщень, і для кожного переміщення шукаємо
+оптимальну (найкоротшу) програму наступного рангу (на ~1~ менше). При цьому ми завжди використовуємо
+панель команд, тому використовуємо пропуск на цій панелі. Для усіх отриманих переміщень обираємо у якості
+оптимальної найкоротшу програму.
+
+#+begin_src rust :noweb yes :noweb-ref day21:find-program:Знайти-оптимальну-програму
+  moves(snippet[i], snippet[i+1], gap, moves_memo)
+      .into_iter()
+      .map(|move_| find_program(iter::once(from_cmd('A')).chain(move_.into_iter()).collect(), CMD_GAP, rank - 1, moves_memo))
+      .min_by_key(|program| program.len())
+      .unwrap()
+#+end_src
+
+* Пошук довжини оптимальної програми для фрагмента
+
+Цей варіант оптимізований для того, щоб обробляти лише числову довжину програми, яка тільки і потрібна.
+
+При пошуку використовуємо =мемоізацію= по фрагментах, пропуску і рангу.
+
+#+begin_src rust :noweb yes :noweb-ref day21:Визначення
+  type FindMemo = BTreeMap<(Snippet, Point, Rank), usize>;
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref day21:Дії
+  let mut find_memo = BTreeMap::new();
+#+end_src
+
+#+begin_src rust :noweb yes :noweb-ref day21:Визначення
+  fn find_len(
+      snippet: Snippet, gap: Point, rank: Rank,
+      moves_memo: &mut MovesMemo, find_memo: &mut FindMemo) -> usize {
+      if let Some(result) = find_memo.get(&(snippet.clone(), gap, rank)) { return *result; }
+      <<day21:find-len:Дії>>
+      find_memo.insert((snippet, gap, rank), result);
+      result
+  }
+#+end_src
+
+Для нульового ранга результат співпадає з самим фрагментом, але без початкової точки (~A~).
+
+#+begin_src rust :noweb yes :noweb-ref day21:find-len:Дії
+  if rank == 0 { return snippet.len() - 1; }
+#+end_src
+
+Перебираємо всі пари послідовних точок фрагмента, для кожної пари отримуємо оптимальну (найкоротшу)
+програму, і нам залишається лише об'єднати ці програми в один фінальний фрагмент-програму.
+
+#+begin_src rust :noweb yes :noweb-ref day21:find-len:Дії
+  let result = (0..snippet.len() - 1)
+      .map(|i| {
+          <<day21:find-len:Знайти-довжину-оптимальної-програми>>
+      })
+      .sum();
+#+end_src
+
+Для пошуку оптимальної програми визначаємо перелік переміщень, і для кожного переміщення шукаємо
+оптимальну (найкоротшу) програму наступного рангу (на ~1~ менше). При цьому ми завжди використовуємо
+панель команд, тому використовуємо пропуск на цій панелі. Для усіх отриманих переміщень обираємо у якості
+оптимальної найкоротшу програму.
+
+#+begin_src rust :noweb yes :noweb-ref day21:find-len:Знайти-довжину-оптимальної-програми
+  moves(snippet[i], snippet[i+1], gap, moves_memo)
+      .into_iter()
+      .map(|move_| find_len(iter::once(from_cmd('A')).chain(move_.into_iter()).collect(), CMD_GAP, rank - 1, moves_memo, find_memo))
+      .min()
+      .unwrap()
+#+end_src
+
+* Обробка кодів
+
+Обробимо кожний код незалежно. Для ефективності коди одразу перепаковуються у вектори точок. Для
+визначеності будь-який код починається з точки =A= на панелі номерів.
+
+#+begin_src rust :noweb yes :noweb-ref day21:Дії
+  for line in lines {
+      let snippet: Snippet = iter::once(from_num('A')).chain(line.chars().map(from_num)).collect();
+      let len = find_len(snippet, NUM_GAP, rank, &mut moves_memo, &mut find_memo);
+      <<day21:Обробити-код>>
+  }
+#+end_src
+
+* Обчислення резульата
+
+Обчислимо результат.
+
+#+begin_src rust :noweb yes :noweb-ref day21:Обробити-код
+  result += len * line[0..line.len()-1].parse::<usize>().unwrap();
 #+end_src
